@@ -42,6 +42,11 @@ export async function PoolHeader({
           {navItem(`Wk ${activeWeek}`, `${base}/week/${activeWeek}`, "week")}
           {navItem("History", `${base}/history`, "history")}
           {isAdmin && navItem("Admin", `${base}/admin`, "admin")}
+          {isAdmin && (
+            <Link href="/admin" className="rounded-md bg-accent-goldSoft px-3 py-1 text-xs font-semibold text-ink hover:bg-accent-gold">
+              Admin Console
+            </Link>
+          )}
           <Link href="/" className="rounded-md border border-line px-3 py-1 text-ink/70 hover:bg-surface">
             My pools
           </Link>

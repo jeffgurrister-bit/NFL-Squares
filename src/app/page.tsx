@@ -5,7 +5,6 @@ import { signOutAction } from "@/app/actions/auth";
 import { dollars } from "@/lib/format";
 import { Grid, type GridSquare } from "@/components/Grid";
 import { weekTotals, allFinal } from "@/lib/scoring";
-import { CreatePoolForm } from "./_components/CreatePoolForm";
 import { AdminBootstrapBanner } from "./_components/AdminBootstrapBanner";
 import { NFLBar } from "./_components/NFLBar";
 import { GoogleButton } from "./login/GoogleButton";
@@ -55,7 +54,11 @@ export default async function Home() {
           <span className="text-lg font-bold text-ink">NFL Squares</span>
         </Link>
         <div className="flex items-center gap-3">
-          {isAdmin && <CreatePoolForm />}
+          {isAdmin && (
+            <Link href="/admin" className="btn-gold">
+              Admin Console
+            </Link>
+          )}
           <span className="text-sm text-ink/60">Hi, {user.name ?? "player"}</span>
           <form action={signOutAction}>
             <button type="submit" className="btn-secondary">
@@ -64,6 +67,20 @@ export default async function Home() {
           </form>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-gold bg-accent-goldSoft p-4">
+          <div>
+            <p className="font-bold text-ink">You&apos;re an admin.</p>
+            <p className="text-xs text-ink/70">
+              Visit the Admin Console for site-wide controls: create pools, manage users, see activity across every pool.
+            </p>
+          </div>
+          <Link href="/admin" className="btn-primary whitespace-nowrap">
+            Open Admin Console →
+          </Link>
+        </div>
+      )}
 
       <div className="mb-6">
         <NFLBar />
@@ -127,7 +144,7 @@ function EmptyState({
         </h1>
         <p className="mt-3 text-sm text-ink/60">
           {isAdmin
-            ? "Click Create Pool above to start one. Set the entry fee, weekly prize, and reverse-square prize. You'll get a URL to share with your players."
+            ? "Open the Admin Console (button above) to create your first pool. You'll get a URL to share with your players."
             : adminExists
               ? "Ask the pool admin for a link. Once they send you one and you click it, your joined pools will show up here for easy switching."
               : "Once an admin sets up a pool, your joined pools will show up here. If you're the one running this, click \"I'm the admin\" above."}
