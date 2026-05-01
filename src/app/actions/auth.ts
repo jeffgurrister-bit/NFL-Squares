@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { AuthError } from "next-auth";
 import { prisma } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
 
@@ -41,13 +42,22 @@ export async function signUpWithCredentials(formData: FormData) {
     },
   });
 
-  // Sign them in immediately. NextAuth's signIn server action throws a
-  // redirect on success, so we let it propagate.
-  await signIn("credentials", {
-    username: usernameRaw,
-    password,
-    redirectTo: "/",
-  });
+  // Sign them in immediately. signIn throws NEXT_REDIRECT on success — we
+  // let it propagate. Auth errors get surfaced as a clean message.
+  try {
+    await signIn("credentials", {
+      username: usernameRaw,
+      password,
+      redirectTo: "/",
+    });
+  } catch (e) {
+    if (e instanceof AuthError) {
+      return {
+        error: "Account created — please sign in.",
+      };
+    }
+    throw e;
+  }
   return { error: null };
 }
 
@@ -58,9 +68,9 @@ export async function signInWithCredentials(formData: FormData) {
     await signIn("credentials", { username, password, redirectTo: "/" });
     return { error: null };
   } catch (e) {
-    // signIn throws a redirect on success; let that bubble up. CredentialsSignin
-    // is the only failure path we care to surface.
-    if (e instanceof Error && e.name === "CredentialsSignin") {
+    // Auth.js v5 marks credential failures via AuthError.type, not Error.name.
+    // Redirects (success path) are NEXT_REDIRECT errors that must propagate.
+    if (e instanceof AuthError && e.type === "CredentialsSignin") {
       return { error: "Wrong username or password." };
     }
     throw e;
