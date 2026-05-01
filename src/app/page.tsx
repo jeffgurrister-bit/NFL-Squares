@@ -7,6 +7,7 @@ import { Grid, type GridSquare } from "@/components/Grid";
 import { weekTotals, allFinal } from "@/lib/scoring";
 import { CreatePoolForm } from "./_components/CreatePoolForm";
 import { AdminBootstrapBanner } from "./_components/AdminBootstrapBanner";
+import { NFLBar } from "./_components/NFLBar";
 import { GoogleButton } from "./login/GoogleButton";
 
 export default async function Home() {
@@ -20,7 +21,6 @@ export default async function Home() {
   const isAdmin = !!user.isAdmin;
   const adminExists = (await prisma.user.count({ where: { isAdmin: true } })) > 0;
 
-  // Pools the user has joined (= has a Participant row in)
   const myPools = await prisma.pool.findMany({
     where: { participants: { some: { userId: user.id } } },
     include: {
@@ -31,7 +31,6 @@ export default async function Home() {
     orderBy: { createdAt: "asc" },
   });
 
-  // Admins also see all pools (so they can manage every pool from here)
   const allPools = isAdmin
     ? await prisma.pool.findMany({
         where: { id: { notIn: myPools.map((p) => p.id) } },
@@ -44,18 +43,20 @@ export default async function Home() {
       })
     : [];
 
+  const hasPools = myPools.length > 0 || allPools.length > 0;
+
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold text-ink">Your Pools</h1>
-          <p className="mt-1 text-sm text-ink/60">
-            Welcome back, {user.name ?? "player"}.
-            {isAdmin ? " You have admin powers." : ""}
-          </p>
-        </div>
+    <main className="mx-auto max-w-6xl px-4 py-6">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <Link href="/" className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-md bg-forest text-xs font-bold text-white">
+            SQ
+          </span>
+          <span className="text-lg font-bold text-ink">NFL Squares</span>
+        </Link>
         <div className="flex items-center gap-3">
           {isAdmin && <CreatePoolForm />}
+          <span className="text-sm text-ink/60">Hi, {user.name ?? "player"}</span>
           <form action={signOutAction}>
             <button type="submit" className="btn-secondary">
               Sign out
@@ -64,22 +65,16 @@ export default async function Home() {
         </div>
       </div>
 
-      {!adminExists && !isAdmin && <AdminBootstrapBanner />}
+      <div className="mb-6">
+        <NFLBar />
+      </div>
 
-      {myPools.length === 0 && allPools.length === 0 ? (
-        <div className="card text-center text-sm text-ink/60">
-          {isAdmin ? (
-            <>
-              No pools yet. Click <strong>Create Pool</strong> above to start one.
-            </>
-          ) : (
-            <>
-              You haven&apos;t joined any pools yet. Ask your pool admin for a link to a pool.
-            </>
-          )}
-        </div>
-      ) : (
-        <>
+      {hasPools ? (
+        <div className="space-y-8">
+          <h1 className="text-2xl font-bold text-ink">
+            Your Pools
+            {isAdmin && <span className="ml-2 text-sm font-normal text-ink/50">(admin)</span>}
+          </h1>
           {myPools.length > 0 && (
             <section>
               <p className="label mb-3">Joined ({myPools.length})</p>
@@ -91,7 +86,7 @@ export default async function Home() {
             </section>
           )}
           {allPools.length > 0 && (
-            <section className="mt-8">
+            <section>
               <p className="label mb-3">Other pools ({allPools.length})</p>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {allPools.map((p) => (
@@ -100,9 +95,98 @@ export default async function Home() {
               </div>
             </section>
           )}
-        </>
+        </div>
+      ) : (
+        <EmptyState
+          isAdmin={isAdmin}
+          adminExists={adminExists}
+        />
       )}
     </main>
+  );
+}
+
+function EmptyState({
+  isAdmin,
+  adminExists,
+}: {
+  isAdmin: boolean;
+  adminExists: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-6 py-10 text-center">
+      {!adminExists && !isAdmin && (
+        <div className="w-full max-w-2xl">
+          <AdminBootstrapBanner />
+        </div>
+      )}
+
+      <div className="max-w-md">
+        <h1 className="text-3xl font-bold tracking-tight text-ink">
+          {isAdmin ? "Create your first pool" : "No pools to play in yet"}
+        </h1>
+        <p className="mt-3 text-sm text-ink/60">
+          {isAdmin
+            ? "Click Create Pool above to start one. Set the entry fee, weekly prize, and reverse-square prize. You'll get a URL to share with your players."
+            : adminExists
+              ? "Ask the pool admin for a link. Once they send you one and you click it, your joined pools will show up here for easy switching."
+              : "Once an admin sets up a pool, your joined pools will show up here. If you're the one running this, click \"I'm the admin\" above."}
+        </p>
+      </div>
+
+      {/* Pretty sample grid + how-it-works for visual interest */}
+      <div className="mt-4 w-full max-w-3xl">
+        <div className="card">
+          <div className="grid gap-6 md:grid-cols-[auto_1fr] md:items-center">
+            <div className="flex justify-center">
+              <SampleGrid />
+            </div>
+            <div className="text-left">
+              <p className="label">How it works</p>
+              <ol className="mt-2 space-y-2 text-sm text-ink/70">
+                <li>
+                  <span className="font-bold text-ink">1.</span> Players claim squares — once for the
+                  whole season.
+                </li>
+                <li>
+                  <span className="font-bold text-ink">2.</span> Each week the digit headers along
+                  the top &amp; side are re-randomized.
+                </li>
+                <li>
+                  <span className="font-bold text-ink">3.</span> Winning square = last digit of all
+                  winning teams&apos; combined scores, last digit of all losing teams&apos;
+                  combined scores. Reverse pair pays a smaller prize.
+                </li>
+                <li>
+                  <span className="font-bold text-ink">4.</span> Admin enters scores and randomizes
+                  digits each week. Payouts compute automatically.
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Static, for-show-only mini-grid that renders on the empty home state.
+function SampleGrid() {
+  const sample: GridSquare[] = [
+    { row: 0, col: 2, participantId: "x", participantName: "Ali", color: "#fecaca" },
+    { row: 4, col: 5, participantId: "y", participantName: "Sam", color: "#bbf7d0" },
+    { row: 7, col: 1, participantId: "z", participantName: "Lee", color: "#bfdbfe" },
+    { row: 8, col: 7, participantId: "w", participantName: "Jim", color: "#fde68a" },
+  ];
+  return (
+    <Grid
+      squares={sample}
+      rowDigits="1473605289"
+      colDigits="5347816209"
+      highlight={{ rowDigit: 3, colDigit: 9 }}
+      reverseHighlight={{ rowDigit: 9, colDigit: 3 }}
+      size="sm"
+    />
   );
 }
 
@@ -198,7 +282,7 @@ async function PoolCard({
 
 function LandingPage() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-16 text-center">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-4 py-12 text-center">
       <div className="inline-flex items-center gap-3">
         <span className="grid h-12 w-12 place-items-center rounded-lg bg-forest text-sm font-bold text-white">
           SQ
@@ -215,7 +299,7 @@ function LandingPage() {
         your square.
       </p>
 
-      <div className="mx-auto mt-10 grid max-w-md grid-cols-1 gap-3">
+      <div className="mx-auto mt-10 grid w-full max-w-md grid-cols-1 gap-3">
         <Link href="/login" className="btn-primary">
           Sign in
         </Link>

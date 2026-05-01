@@ -32,7 +32,30 @@ export async function fetchEspnWeek(year: number, week: number, seasonType = 2):
   const res = await fetch(url, { next: { revalidate: 60 } });
   if (!res.ok) throw new Error(`ESPN fetch failed: ${res.status}`);
   const json = (await res.json()) as { events?: EspnEvent[] };
-  const events = json.events ?? [];
+  return parseEvents(json.events ?? []);
+}
+
+// Fetches whatever ESPN considers the "current" scoreboard (no week filter).
+// Returns at most `limit` games, sorted by kickoff time. Returns [] silently
+// on any error so the home-page widget never blocks the page.
+export async function fetchEspnCurrentScoreboard(limit = 6): Promise<EspnGame[]> {
+  try {
+    const res = await fetch(BASE, { next: { revalidate: 300 } });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { events?: EspnEvent[] };
+    const games = parseEvents(json.events ?? []);
+    games.sort((a, b) => {
+      const at = a.kickoffAt?.getTime() ?? 0;
+      const bt = b.kickoffAt?.getTime() ?? 0;
+      return at - bt;
+    });
+    return games.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+function parseEvents(events: EspnEvent[]): EspnGame[] {
   return events.map((ev) => {
     const comp = ev.competitions?.[0];
     const competitors = comp?.competitors ?? [];
