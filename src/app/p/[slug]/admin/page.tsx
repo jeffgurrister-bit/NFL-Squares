@@ -1,12 +1,13 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { PoolHeader } from "@/components/PoolHeader";
 import { isAdmin } from "@/lib/admin";
 import { dollars } from "@/lib/format";
 import { computePaidOutByParticipant, computeWinningsByParticipant } from "@/lib/payouts";
-import { AdminLogin } from "./AdminLogin";
 import { PaymentsTable } from "./PaymentsTable";
 import { WeekManager } from "./WeekManager";
+import { UserManagement } from "./UserManagement";
 
 export default async function AdminPage({
   params,
@@ -33,7 +34,16 @@ export default async function AdminPage({
       <>
         <PoolHeader poolName={pool.name} poolSlug={pool.slug} activeWeek={pool.activeWeekNumber} current="admin" />
         <main className="mx-auto max-w-md px-4 py-16">
-          <AdminLogin />
+          <div className="card text-center">
+            <h1 className="text-xl font-bold text-ink">Admin only</h1>
+            <p className="mt-2 text-sm text-ink/60">
+              You need an admin account to view this page. If you should have access,
+              ask the current admin to promote you.
+            </p>
+            <Link href={`/p/${pool.slug}`} className="btn-primary mt-4 inline-flex">
+              Back to pool
+            </Link>
+          </div>
         </main>
       </>
     );
@@ -62,7 +72,6 @@ export default async function AdminPage({
   const totalPaid = players.reduce((s, p) => s + p.paidOut, 0);
   const outstanding = totalWon - totalPaid;
 
-  // Selected week (defaults to active)
   const selectedWeekNumber = wk ? Number(wk) : pool.activeWeekNumber;
   const selectedPoolWeek =
     pool.poolWeeks.find((w) => w.weekNumber === selectedWeekNumber) ?? null;
@@ -70,8 +79,13 @@ export default async function AdminPage({
     where: { weekNumber: selectedWeekNumber },
     orderBy: { kickoffAt: "asc" },
   });
-
   const allWeeks = Array.from({ length: 18 }, (_, i) => i + 1);
+
+  // Pull all users for the user management section
+  const users = await prisma.user.findMany({
+    orderBy: [{ isAdmin: "desc" }, { createdAt: "asc" }],
+    select: { id: true, name: true, username: true, email: true, isAdmin: true, createdAt: true },
+  });
 
   return (
     <>
@@ -160,6 +174,10 @@ export default async function AdminPage({
               isFinal: g.isFinal,
             }))}
           />
+        </section>
+
+        <section className="mt-6">
+          <UserManagement users={users.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() }))} />
         </section>
       </main>
     </>
