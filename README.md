@@ -7,7 +7,7 @@ A Super-Bowl-style squares pool that runs the full NFL regular season.
 - Each week's winner = (last digit of all winning teams' total scores, last digit of all losing teams' total scores). The reverse pair (losers, winners) is a secondary winner.
 - Multiple pools can run side-by-side and share NFL game data, but each pool has its own grid, participants, weekly digits, and payment ledger.
 - **Player accounts** keep your squares and history tied to you across devices. Sign in with Google or username + password.
-- **Admins** can manage games, randomize digits, edit payments, and promote other users. The first user to sign up is automatically made admin.
+- **Admins** can manage games, randomize digits, edit payments, and promote other users. Until someone claims it, a banner on the home page lets the first signed-in user become admin.
 
 ## Deploy to Vercel (free)
 
@@ -18,8 +18,8 @@ After clicking the button:
 1. **Set `AUTH_SECRET`** when prompted. Generate a random string with `openssl rand -base64 32` (or any random 32+ character string).
 2. **Provision Postgres** when prompted — Vercel will offer Neon (free) or Vercel Postgres. Either is fine. This auto-injects `DATABASE_URL`.
 3. The first deploy applies migrations automatically (the build script runs `prisma migrate deploy`).
-4. Visit your site and **click "Create an account"**. The first person to sign up automatically becomes admin.
-5. Hand the URL to your players. They sign up the same way; you (the admin) can promote others later from the admin page if needed.
+4. Visit your site and **click "Create an account"**. After signing up, the home page shows a yellow banner saying "No admin set up yet" with a button to claim admin. Whoever should run the pool clicks that. Other users (including the deployer if you want to test as a regular player) leave it alone.
+5. Hand the URL to your players. They sign up the same way; the admin can promote others later from the admin page if needed.
 
 ### Add "Sign in with Google" (optional)
 

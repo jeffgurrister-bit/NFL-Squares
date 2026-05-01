@@ -63,13 +63,35 @@ export async function signOutAction() {
 }
 
 export async function setUserAdmin(userId: string, isAdmin: boolean) {
-  // The caller (admin page) verifies the actor is admin before invoking this.
-  // We additionally guard against demoting the last admin.
+  // Caller (admin page) is verified via session.user.isAdmin server-side
+  // before this is ever invoked. We additionally guard the actor:
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  const actorIsAdmin = !!(session?.user as { isAdmin?: boolean } | undefined)?.isAdmin;
+  if (!actorIsAdmin) throw new Error("Admin only.");
+
   if (!isAdmin) {
     const adminCount = await prisma.user.count({ where: { isAdmin: true } });
     if (adminCount <= 1) throw new Error("Can't remove the last admin.");
   }
   await prisma.user.update({ where: { id: userId }, data: { isAdmin } });
+  revalidatePath("/", "layout");
+}
+
+// Bootstrap action: lets the signed-in user claim admin if and ONLY if no
+// admin exists yet. Idempotent; becomes a no-op once any admin is set, so
+// it's safe to leave the button visible without worrying about coups.
+export async function claimFirstAdmin() {
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) redirect("/login");
+
+  const existingAdmin = await prisma.user.findFirst({ where: { isAdmin: true } });
+  if (existingAdmin) {
+    throw new Error("An admin already exists. Ask them to promote you.");
+  }
+  await prisma.user.update({ where: { id: userId }, data: { isAdmin: true } });
   revalidatePath("/", "layout");
 }
 

@@ -6,6 +6,7 @@ import { dollars } from "@/lib/format";
 import { Grid, type GridSquare } from "@/components/Grid";
 import { weekTotals, allFinal } from "@/lib/scoring";
 import { CreatePoolForm } from "./_components/CreatePoolForm";
+import { AdminBootstrapBanner } from "./_components/AdminBootstrapBanner";
 import { GoogleButton } from "./login/GoogleButton";
 
 export default async function Home() {
@@ -17,6 +18,7 @@ export default async function Home() {
   if (!user?.id) return <LandingPage />;
 
   const isAdmin = !!user.isAdmin;
+  const adminExists = (await prisma.user.count({ where: { isAdmin: true } })) > 0;
 
   // Pools the user has joined (= has a Participant row in)
   const myPools = await prisma.pool.findMany({
@@ -61,6 +63,8 @@ export default async function Home() {
           </form>
         </div>
       </div>
+
+      {!adminExists && !isAdmin && <AdminBootstrapBanner />}
 
       {myPools.length === 0 && allPools.length === 0 ? (
         <div className="card text-center text-sm text-ink/60">

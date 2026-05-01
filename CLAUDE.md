@@ -93,7 +93,7 @@ The app uses the Next.js App Router with the following structure:
 
 JWT session strategy (no Session table). The JWT callback enriches the token with `isAdmin` and `username` on every request, queried fresh from the DB so admin promotions/demotions take effect immediately.
 
-**First-user-is-admin bootstrap.** The `signIn` callback in `auth.ts` checks if any admin exists; if not, the signing-in user is promoted to admin atomically. This is how a fresh deployment seeds its first admin without an env var.
+**Admin bootstrap (opt-in).** Sign-up does *not* auto-promote. Instead, the home page shows a yellow `AdminBootstrapBanner` to any signed-in user as long as no admin exists yet. Clicking "I'm the admin" calls `claimFirstAdmin()` which is a no-op once any admin is set. This way the deployer can sign up as a player to test, then hand off the URL to whoever should actually be admin.
 
 `src/lib/admin.ts` exports `isAdmin()` and `currentUserId()` thin wrappers around `auth()`. Admin-only Server Actions (e.g. `setUserAdmin`, `unclaimSquare`, `createPool`, `randomizeDigits`) all check `session.user.isAdmin` server-side — never trust client claims.
 

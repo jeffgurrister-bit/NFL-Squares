@@ -49,19 +49,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: { signIn: "/login" },
   trustHost: true,
   callbacks: {
-    async signIn({ user }) {
-      // First-user-wins admin bootstrap. If there are no admins yet, mark
-      // this signing-in user as admin. Runs both on Google and credentials.
-      if (!user?.id) return true;
-      const adminCount = await prisma.user.count({ where: { isAdmin: true } });
-      if (adminCount === 0) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { isAdmin: true },
-        });
-      }
-      return true;
-    },
     async jwt({ token, user }) {
       if (user?.id) token.uid = user.id;
       if (token.uid) {
