@@ -19,13 +19,13 @@ export function LoginForm() {
       className="space-y-3"
     >
       <div>
-        <label className="label">Username</label>
+        <label className="label">Username or email</label>
         <input
           name="username"
           required
           autoComplete="username"
           className="input mt-1"
-          placeholder="jimmie"
+          placeholder="jimmie or jimmie@gmail.com"
         />
       </div>
       <div>

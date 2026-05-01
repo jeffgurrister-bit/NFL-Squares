@@ -29,16 +29,17 @@ export function SignupForm() {
         />
       </div>
       <div>
-        <label className="label">Username</label>
+        <label className="label">Username or email</label>
         <input
           name="username"
           required
           autoComplete="username"
-          pattern="[a-z0-9_-]{3,32}"
           className="input mt-1"
-          placeholder="jimmie"
+          placeholder="jimmie or jimmie@gmail.com"
         />
-        <p className="mt-1 text-xs text-ink/50">3–32 characters: lowercase letters, numbers, _ or -.</p>
+        <p className="mt-1 text-xs text-ink/50">
+          Use whatever you&apos;ll remember — your email or a short username are both fine.
+        </p>
       </div>
       <div>
         <label className="label">Password</label>

@@ -6,26 +6,39 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
 
-const USERNAME_RE = /^[a-z0-9_-]{3,32}$/;
+// Accept both plain usernames and email addresses. The field is stored as
+// `username` regardless; if it looks like an email we also populate `email`
+// so a later Google sign-in with the same address links to the same User.
+const IDENT_RE = /^[a-z0-9@._+-]{3,64}$/;
 
 export async function signUpWithCredentials(formData: FormData) {
   const usernameRaw = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const displayName = String(formData.get("name") ?? "").trim() || usernameRaw;
 
-  if (!USERNAME_RE.test(usernameRaw)) {
-    return { error: "Username must be 3–32 chars: lowercase letters, numbers, _ or -." };
+  if (!IDENT_RE.test(usernameRaw)) {
+    return { error: "Username or email must be 3–64 characters (no spaces)." };
   }
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
 
-  const existing = await prisma.user.findUnique({ where: { username: usernameRaw } });
-  if (existing) return { error: "That username is taken." };
+  const looksLikeEmail = usernameRaw.includes("@");
+  const existing = await prisma.user.findFirst({
+    where: looksLikeEmail
+      ? { OR: [{ username: usernameRaw }, { email: usernameRaw }] }
+      : { username: usernameRaw },
+  });
+  if (existing) return { error: "That username or email is already taken." };
 
   const passwordHash = await bcrypt.hash(password, 10);
   await prisma.user.create({
-    data: { username: usernameRaw, name: displayName, passwordHash },
+    data: {
+      username: usernameRaw,
+      email: looksLikeEmail ? usernameRaw : null,
+      name: displayName,
+      passwordHash,
+    },
   });
 
   // Sign them in immediately. NextAuth's signIn server action throws a

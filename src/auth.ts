@@ -15,10 +15,13 @@ const providers: ReturnType<typeof Credentials>[] | (ReturnType<typeof Credentia
       password: { label: "Password", type: "password" },
     },
     async authorize(creds) {
-      const username = String(creds?.username ?? "").trim().toLowerCase();
+      const ident = String(creds?.username ?? "").trim().toLowerCase();
       const password = String(creds?.password ?? "");
-      if (!username || !password) return null;
-      const user = await prisma.user.findUnique({ where: { username } });
+      if (!ident || !password) return null;
+      // Accept either username or email for the credentials login.
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ username: ident }, { email: ident }] },
+      });
       if (!user || !user.passwordHash) return null;
       const ok = await bcrypt.compare(password, user.passwordHash);
       if (!ok) return null;
