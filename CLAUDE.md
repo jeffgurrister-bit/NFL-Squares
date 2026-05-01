@@ -12,18 +12,29 @@ The app supports multiple independent pools that share NFL game data but have th
 
 ```bash
 npm run dev         # Next.js dev server on :3000
-npm run build       # production build (also runs type-checking)
+npm run build       # runs `prisma migrate deploy` then `next build` (used in CI / Vercel)
 npm run lint        # next lint
-npm run db:push     # apply prisma/schema.prisma to the SQLite DB
+npm run db:migrate  # create + apply a new migration locally (interactive)
+npm run db:deploy   # apply all pending migrations (used in production builds)
 npm run db:seed     # load sample pools (Smith Family, Main Pool) + Week 1 games
-npm run db:reset    # nuke and re-seed (handy after schema changes)
+npm run db:reset    # nuke DB, re-apply migrations, re-seed (handy after schema changes)
 ```
 
-The DB lives at `prisma/dev.db` (SQLite, gitignored). `npm install` triggers `prisma generate` automatically via the `postinstall` hook, so the schema must exist before installs work.
+`npm install` triggers `prisma generate` automatically via the `postinstall` hook, so the schema must exist before installs work.
 
 Required env vars (see `.env.example`):
-- `DATABASE_URL` — defaults to `file:./dev.db`
-- `ADMIN_PASSWORD` — single shared password for the admin pages; must be set or admin login is permanently rejected
+- `DATABASE_URL` — Postgres connection string. On Vercel, auto-injected by the Postgres integration. Locally, point to a Neon/Docker/local Postgres.
+- `ADMIN_PASSWORD` — single shared password for the admin pages; must be set or admin login is permanently rejected.
+
+## Deployment
+
+The repo is wired for Vercel + Postgres. The README has a one-click "Deploy to Vercel" button that:
+1. Forks the repo to the user's GitHub
+2. Prompts for `ADMIN_PASSWORD`
+3. Provisions a Postgres store (auto-injects `DATABASE_URL`)
+4. Runs `npm run build` — which runs `prisma migrate deploy` before `next build`, so migrations in `prisma/migrations/` are applied on every deploy
+
+If you change the schema, **always commit a new migration** under `prisma/migrations/<timestamp>_<name>/migration.sql` (use `npm run db:migrate` to generate). The `migration_lock.toml` file pins the provider to `postgresql` — don't switch providers without intent.
 
 ## Architecture
 
