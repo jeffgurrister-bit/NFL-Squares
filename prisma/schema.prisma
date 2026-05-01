@@ -1,0 +1,130 @@
+// NFL Squares - season-long pool
+//
+// Key design decisions:
+//  - Games are GLOBAL (one Game row per NFL game, shared across all Pools).
+//  - Pools have their own Participants, Squares, Weeks, and Payments.
+//  - Squares are season-long (a Participant claims a (row, col) once and keeps
+//    it all year). Weeks store their own randomized digit headers, so the same
+//    physical square represents different digit combinations each week.
+//  - Digit headers are stored as comma-separated strings of 10 digits (0-9, no
+//    repeats). Stored on PoolWeek, not Week, because each pool randomizes
+//    independently.
+//  - Payments are an append-only ledger of admin-recorded payouts to a
+//    Participant. Winnings are computed on the fly from games + week digits +
+//    squares; we don't store them as rows.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Pool {
+  id                  String        @id @default(cuid())
+  slug                String        @unique
+  name                String
+  entryFeePerSquare   Int           // dollars
+  weeklyPrize         Int           // dollars to the winning square
+  reverseWeeklyPrize  Int           // dollars to the reverse square
+  activeWeekNumber    Int           @default(1)
+  createdAt           DateTime      @default(now())
+
+  participants  Participant[]
+  squares       Square[]
+  poolWeeks     PoolWeek[]
+  payments      Payment[]
+  activity      ActivityLog[]
+}
+
+model Participant {
+  id        String    @id @default(cuid())
+  poolId    String
+  name      String
+  color     String    // hex, e.g. #fecaca
+  createdAt DateTime  @default(now())
+
+  pool      Pool      @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  squares   Square[]
+  payments  Payment[]
+
+  @@unique([poolId, name])
+}
+
+model Square {
+  id            String   @id @default(cuid())
+  poolId        String
+  participantId String
+  row           Int      // 0-9, fixed for the season
+  col           Int      // 0-9, fixed for the season
+  createdAt     DateTime @default(now())
+
+  pool          Pool        @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, row, col])
+  @@index([participantId])
+}
+
+// PoolWeek = the per-pool view of a given NFL week (digits + status).
+// Digit headers stored as 10-char strings of digits 0-9 in order (no repeats).
+model PoolWeek {
+  id            String   @id @default(cuid())
+  poolId        String
+  weekNumber    Int
+  rowDigits     String?  // e.g. "1473605289" - row index i -> rowDigits[i]
+  colDigits     String?  // same shape, for columns
+  randomizedAt  DateTime?
+  createdAt     DateTime @default(now())
+
+  pool          Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, weekNumber])
+}
+
+// Game = global. Shared across all pools.
+model Game {
+  id            String   @id @default(cuid())
+  weekNumber    Int
+  awayTeam      String
+  homeTeam      String
+  awayScore     Int?
+  homeScore     Int?
+  isFinal       Boolean  @default(false)
+  kickoffAt     DateTime?
+  espnId        String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([weekNumber])
+}
+
+// Payment = admin-recorded payout to a participant.
+// Positive amount = paid TO participant. Note records context (e.g. "Wk 1 prize").
+model Payment {
+  id            String   @id @default(cuid())
+  poolId        String
+  participantId String
+  amount        Int      // dollars paid out (always positive)
+  note          String?
+  paidAt        DateTime @default(now())
+
+  pool          Pool        @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@index([participantId])
+}
+
+// Activity log for the "Recent Activity" sidebar on the grid page.
+model ActivityLog {
+  id        String   @id @default(cuid())
+  poolId    String
+  message   String
+  createdAt DateTime @default(now())
+
+  pool      Pool     @relation(fields: [poolId], references: [id], onDelete: Cascade)
+
+  @@index([poolId, createdAt])
+}
