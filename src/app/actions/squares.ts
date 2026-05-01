@@ -2,9 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { pickColor } from "@/lib/format";
 import { auth } from "@/auth";
+
+// Recognises Prisma's "unique constraint failed" error so callers can
+// translate it to a user-friendly message instead of leaking SQL detail.
+function isUniqueViolation(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+}
 
 // Returns or creates a Participant linking the signed-in user to a pool.
 // Each user gets exactly one Participant per pool (enforced by the unique
@@ -33,14 +40,25 @@ export async function joinPool(poolId: string, displayName?: string, color?: str
     suffix += 1;
   }
 
-  const p = await prisma.participant.create({
-    data: {
-      poolId,
-      userId,
-      name,
-      color: color || pickColor(count),
-    },
-  });
+  let p;
+  try {
+    p = await prisma.participant.create({
+      data: {
+        poolId,
+        userId,
+        name,
+        color: color || pickColor(count),
+      },
+    });
+  } catch (e) {
+    // Concurrent join from two devices: the unique (poolId, userId) wins.
+    // Re-fetch and return the winner.
+    if (isUniqueViolation(e)) {
+      const found = await prisma.participant.findFirst({ where: { poolId, userId } });
+      if (found) return { id: found.id, name: found.name, color: found.color };
+    }
+    throw e;
+  }
   await prisma.activityLog.create({
     data: { poolId, message: `${name} joined the pool` },
   });
@@ -54,7 +72,9 @@ export async function joinPool(poolId: string, displayName?: string, color?: str
 }
 
 export async function claimSquare(poolId: string, row: number, col: number) {
-  if (row < 0 || row > 9 || col < 0 || col > 9) throw new Error("Invalid square");
+  if (!Number.isInteger(row) || !Number.isInteger(col) || row < 0 || row > 9 || col < 0 || col > 9) {
+    throw new Error("Invalid square");
+  }
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) redirect("/login");
@@ -74,11 +94,16 @@ export async function claimSquare(poolId: string, row: number, col: number) {
   const existing = await prisma.square.findUnique({
     where: { poolId_row_col: { poolId, row, col } },
   });
-  if (existing) throw new Error("Square already claimed");
+  if (existing) throw new Error("Square already claimed.");
 
-  await prisma.square.create({
-    data: { poolId, participantId: me.id, row, col },
-  });
+  try {
+    await prisma.square.create({
+      data: { poolId, participantId: me.id, row, col },
+    });
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new Error("Square already claimed.");
+    throw e;
+  }
   await prisma.activityLog.create({
     data: { poolId, message: `${me.name} claimed 1 square` },
   });
