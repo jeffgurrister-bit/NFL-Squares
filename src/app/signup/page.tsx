@@ -10,7 +10,7 @@ export default async function SignupPage() {
   const googleEnabled = !!(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
   return (
-    <main className="mx-auto max-w-md px-4 py-12">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-12">
       <div className="mb-8 text-center">
         <Link href="/" className="inline-flex items-center gap-3">
           <span className="grid h-12 w-12 place-items-center rounded-lg bg-forest text-sm font-bold text-white">
