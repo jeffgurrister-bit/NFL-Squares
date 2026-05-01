@@ -4,8 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { slugify } from "@/lib/format";
+import { auth } from "@/auth";
 
 export async function createPool(formData: FormData) {
+  const session = await auth();
+  const isAdmin = !!(session?.user as { isAdmin?: boolean } | undefined)?.isAdmin;
+  if (!isAdmin) throw new Error("Admin only");
+
   const name = String(formData.get("name") ?? "").trim();
   const entry = Number(formData.get("entryFeePerSquare") ?? 0);
   const weekly = Number(formData.get("weeklyPrize") ?? 0);

@@ -1,16 +1,127 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { setAdminCookie, clearAdminCookie } from "@/lib/admin";
+import { redirect } from "next/navigation";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/db";
+import { signIn, signOut } from "@/auth";
 
-export async function adminLogin(formData: FormData) {
+// Accept both plain usernames and email addresses. The field is stored as
+// `username` regardless; if it looks like an email we also populate `email`
+// so a later Google sign-in with the same address links to the same User.
+const IDENT_RE = /^[a-z0-9@._+-]{3,64}$/;
+
+export async function signUpWithCredentials(formData: FormData) {
+  const usernameRaw = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const ok = await setAdminCookie(password);
-  revalidatePath("/", "layout");
-  return { ok };
+  const displayName = String(formData.get("name") ?? "").trim() || usernameRaw;
+
+  if (!IDENT_RE.test(usernameRaw)) {
+    return { error: "Username or email must be 3–64 characters (no spaces)." };
+  }
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  const looksLikeEmail = usernameRaw.includes("@");
+  const existing = await prisma.user.findFirst({
+    where: looksLikeEmail
+      ? { OR: [{ username: usernameRaw }, { email: usernameRaw }] }
+      : { username: usernameRaw },
+  });
+  if (existing) return { error: "That username or email is already taken." };
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  await prisma.user.create({
+    data: {
+      username: usernameRaw,
+      email: looksLikeEmail ? usernameRaw : null,
+      name: displayName,
+      passwordHash,
+    },
+  });
+
+  // Sign them in immediately. NextAuth's signIn server action throws a
+  // redirect on success, so we let it propagate.
+  await signIn("credentials", {
+    username: usernameRaw,
+    password,
+    redirectTo: "/",
+  });
+  return { error: null };
 }
 
-export async function adminLogout() {
-  await clearAdminCookie();
+export async function signInWithCredentials(formData: FormData) {
+  const username = String(formData.get("username") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  try {
+    await signIn("credentials", { username, password, redirectTo: "/" });
+    return { error: null };
+  } catch (e) {
+    // signIn throws a redirect on success; let that bubble up. CredentialsSignin
+    // is the only failure path we care to surface.
+    if (e instanceof Error && e.name === "CredentialsSignin") {
+      return { error: "Wrong username or password." };
+    }
+    throw e;
+  }
+}
+
+export async function signInWithGoogle() {
+  await signIn("google", { redirectTo: "/" });
+}
+
+export async function signOutAction() {
+  await signOut({ redirectTo: "/" });
+}
+
+export async function setUserAdmin(userId: string, isAdmin: boolean) {
+  // Caller (admin page) is verified via session.user.isAdmin server-side
+  // before this is ever invoked. We additionally guard the actor:
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  const actorIsAdmin = !!(session?.user as { isAdmin?: boolean } | undefined)?.isAdmin;
+  if (!actorIsAdmin) throw new Error("Admin only.");
+
+  if (!isAdmin) {
+    const adminCount = await prisma.user.count({ where: { isAdmin: true } });
+    if (adminCount <= 1) throw new Error("Can't remove the last admin.");
+  }
+  await prisma.user.update({ where: { id: userId }, data: { isAdmin } });
   revalidatePath("/", "layout");
+}
+
+// Bootstrap action: lets the signed-in user claim admin if and ONLY if no
+// admin exists yet. Idempotent; becomes a no-op once any admin is set, so
+// it's safe to leave the button visible without worrying about coups.
+export async function claimFirstAdmin() {
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) redirect("/login");
+
+  const existingAdmin = await prisma.user.findFirst({ where: { isAdmin: true } });
+  if (existingAdmin) {
+    throw new Error("An admin already exists. Ask them to promote you.");
+  }
+  await prisma.user.update({ where: { id: userId }, data: { isAdmin: true } });
+  revalidatePath("/", "layout");
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  // Used by signed-in users to rotate their own password.
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) redirect("/login");
+  if (newPassword.length < 8) throw new Error("New password must be at least 8 characters.");
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) {
+    throw new Error("This account doesn't use a password (signed in via Google).");
+  }
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) throw new Error("Current password is wrong.");
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 }

@@ -6,35 +6,54 @@ A Super-Bowl-style squares pool that runs the full NFL regular season.
 - Digit headers (top + side) are **re-randomized every week**.
 - Each week's winner = (last digit of all winning teams' total scores, last digit of all losing teams' total scores). The reverse pair (losers, winners) is a secondary winner.
 - Multiple pools can run side-by-side and share NFL game data, but each pool has its own grid, participants, weekly digits, and payment ledger.
+- **Player accounts** keep your squares and history tied to you across devices. Sign in with Google or username + password.
+- **Admins** can manage games, randomize digits, edit payments, and promote other users. Until someone claims it, a banner on the home page lets the first signed-in user become admin.
 
 ## Deploy to Vercel (free)
 
-The fastest path to a live site. Click below — Vercel will fork the repo to your GitHub, provision a free Postgres database, and deploy.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjeffgurrister-bit%2FNFL-Squares&env=AUTH_SECRET&envDescription=Random%20string%20used%20to%20sign%20session%20cookies.%20Generate%20with%3A%20openssl%20rand%20-base64%2032&project-name=nfl-squares&repository-name=nfl-squares&stores=%5B%7B%22type%22%3A%22postgres%22%7D%5D)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fjeffgurrister-bit%2FNFL-Squares&env=ADMIN_PASSWORD&envDescription=Single%20shared%20password%20for%20the%20admin%20pages.%20Pick%20something%20strong.&project-name=nfl-squares&repository-name=nfl-squares&stores=%5B%7B%22type%22%3A%22postgres%22%7D%5D)
+After clicking the button:
 
-After deployment:
+1. **Set `AUTH_SECRET`** when prompted. Generate a random string with `openssl rand -base64 32` (or any random 32+ character string).
+2. **Provision Postgres** when prompted — Vercel will offer Neon (free) or Vercel Postgres. Either is fine. This auto-injects `DATABASE_URL`.
+3. The first deploy applies migrations automatically (the build script runs `prisma migrate deploy`).
+4. Visit your site and **click "Create an account"**. After signing up, the home page shows a yellow banner saying "No admin set up yet" with a button to claim admin. Whoever should run the pool clicks that. Other users (including the deployer if you want to test as a regular player) leave it alone.
+5. Hand the URL to your players. They sign up the same way; the admin can promote others later from the admin page if needed.
 
-1. **Set `ADMIN_PASSWORD`** when prompted (you'll use this on `/p/<pool>/admin`).
-2. **Provision Postgres** when prompted — this auto-injects `DATABASE_URL`. Vercel Postgres or Neon both work; either is free.
-3. After the first deploy, open the **Deployment → Functions logs** to confirm the migration applied. The build script runs `prisma migrate deploy` automatically.
-4. **Seed (optional).** From your local machine: `DATABASE_URL=<copied from Vercel> npm run db:seed` — this creates the sample "Smith Family" / "Main Pool" pools so you can see what the app looks like before creating your own. Skip this if you'd rather start from a clean slate.
-5. **Custom domain (optional).** Vercel project → Settings → Domains. Add a domain you own and Vercel handles SSL automatically.
+### Add "Sign in with Google" (optional)
+
+If you want a one-click Google sign-in option for players:
+
+1. Open https://console.cloud.google.com/apis/credentials in your browser (sign in with any Google account).
+2. Click **Create Credentials → OAuth client ID**. Choose **Web application** as the type.
+3. Under **Authorized JavaScript origins**, add your site URL: `https://your-app.vercel.app`.
+4. Under **Authorized redirect URIs**, add: `https://your-app.vercel.app/api/auth/callback/google`.
+5. Click **Create**. Copy the **Client ID** and **Client Secret**.
+6. In your Vercel project: **Settings → Environment Variables**. Add:
+   - `AUTH_GOOGLE_ID` = the Client ID
+   - `AUTH_GOOGLE_SECRET` = the Client Secret
+7. Click **Redeploy** in Vercel to pick up the new env vars.
+
+The "Continue with Google" button will appear automatically on the login and signup pages.
+
+### Custom domain
+
+Vercel project → **Settings → Domains** → add a domain you own. Vercel handles SSL automatically.
 
 ## Local development
 
 You need a Postgres database. Easiest options:
 
-- **Neon** (https://neon.tech) — free serverless Postgres. Create a project, copy its connection string into `.env`.
-- **Docker** — `docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=squares postgres:16` then `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/squares`.
+- **Neon** (https://neon.tech) — free serverless Postgres, no installation. Create a project and copy its connection string.
+- **Docker** — `docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=squares postgres:16`, then `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/squares`.
 
 Then:
 
 ```bash
-cp .env.example .env       # paste your DATABASE_URL and set ADMIN_PASSWORD
+cp .env.example .env       # paste DATABASE_URL, set AUTH_SECRET (any random string)
 npm install
 npm run db:deploy          # apply migrations to your DB
-npm run db:seed            # (optional) load sample pools + Week 1 games
 npm run dev                # http://localhost:3000
 ```
 
@@ -43,11 +62,11 @@ To make schema changes:
 ```bash
 # edit prisma/schema.prisma, then:
 npm run db:migrate         # creates a new migration and applies it locally
-git add prisma/migrations  # commit the migration; Vercel applies it on next deploy
+git add prisma/migrations  # commit; Vercel applies it on next deploy
 ```
 
 ## Stack
 
-Next.js 15 App Router · React 19 · TypeScript · Tailwind · Prisma + PostgreSQL.
+Next.js 15 App Router · React 19 · TypeScript · Tailwind · Prisma + PostgreSQL · Auth.js (NextAuth v5).
 
 See [CLAUDE.md](./CLAUDE.md) for architecture details.

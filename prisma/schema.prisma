@@ -2,16 +2,19 @@
 //
 // Key design decisions:
 //  - Games are GLOBAL (one Game row per NFL game, shared across all Pools).
-//  - Pools have their own Participants, Squares, Weeks, and Payments.
+//  - Auth is via Auth.js (NextAuth v5). Players sign in with Google or
+//    username+password. A `User` is the global identity.
+//  - When a user joins a pool, a `Participant` row links them to that pool
+//    with a per-pool display name + color.
 //  - Squares are season-long (a Participant claims a (row, col) once and keeps
 //    it all year). Weeks store their own randomized digit headers, so the same
 //    physical square represents different digit combinations each week.
-//  - Digit headers are stored as comma-separated strings of 10 digits (0-9, no
-//    repeats). Stored on PoolWeek, not Week, because each pool randomizes
-//    independently.
-//  - Payments are an append-only ledger of admin-recorded payouts to a
-//    Participant. Winnings are computed on the fly from games + week digits +
-//    squares; we don't store them as rows.
+//  - Digit headers are stored as 10-char strings of digits 0-9, no repeats.
+//    Stored on PoolWeek (not Week), because each pool randomizes independently.
+//  - Payments are an append-only ledger of admin-recorded payouts.
+//    Winnings are computed on the fly from games + week digits + squares.
+//  - First user to sign up becomes admin automatically. Subsequent admin
+//    promotions happen through the admin UI.
 
 generator client {
   provider = "prisma-client-js"
@@ -21,6 +24,45 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ----- Auth (NextAuth v5) -----
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique // populated by Google OAuth or optional for credentials
+  emailVerified DateTime?
+  username      String?   @unique // populated by credentials sign-up
+  passwordHash  String?            // bcrypt-hashed; only set for credentials users
+  name          String?
+  image         String?
+  isAdmin       Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+
+  accounts      Account[]
+  participants  Participant[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ----- Pool & gameplay -----
 
 model Pool {
   id                  String        @id @default(cuid())
@@ -42,15 +84,19 @@ model Pool {
 model Participant {
   id        String    @id @default(cuid())
   poolId    String
+  userId    String?   // nullable for backwards-compat / admin-created participants
   name      String
   color     String    // hex, e.g. #fecaca
   createdAt DateTime  @default(now())
 
   pool      Pool      @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   squares   Square[]
   payments  Payment[]
 
   @@unique([poolId, name])
+  @@unique([poolId, userId])
+  @@index([userId])
 }
 
 model Square {
@@ -68,14 +114,12 @@ model Square {
   @@index([participantId])
 }
 
-// PoolWeek = the per-pool view of a given NFL week (digits + status).
-// Digit headers stored as 10-char strings of digits 0-9 in order (no repeats).
 model PoolWeek {
   id            String   @id @default(cuid())
   poolId        String
   weekNumber    Int
-  rowDigits     String?  // e.g. "1473605289" - row index i -> rowDigits[i]
-  colDigits     String?  // same shape, for columns
+  rowDigits     String?
+  colDigits     String?
   randomizedAt  DateTime?
   createdAt     DateTime @default(now())
 
@@ -84,7 +128,6 @@ model PoolWeek {
   @@unique([poolId, weekNumber])
 }
 
-// Game = global. Shared across all pools.
 model Game {
   id            String   @id @default(cuid())
   weekNumber    Int
@@ -101,13 +144,11 @@ model Game {
   @@index([weekNumber])
 }
 
-// Payment = admin-recorded payout to a participant.
-// Positive amount = paid TO participant. Note records context (e.g. "Wk 1 prize").
 model Payment {
   id            String   @id @default(cuid())
   poolId        String
   participantId String
-  amount        Int      // dollars paid out (always positive)
+  amount        Int
   note          String?
   paidAt        DateTime @default(now())
 
@@ -117,7 +158,6 @@ model Payment {
   @@index([participantId])
 }
 
-// Activity log for the "Recent Activity" sidebar on the grid page.
 model ActivityLog {
   id        String   @id @default(cuid())
   poolId    String
