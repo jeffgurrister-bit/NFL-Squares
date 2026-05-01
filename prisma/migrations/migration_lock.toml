@@ -1,0 +1,3 @@
+# This file locks the migration workflow to a specific provider so collaborators
+# can't accidentally run migrations against a different database engine.
+provider = "postgresql"
