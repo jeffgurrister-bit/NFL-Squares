@@ -155,7 +155,7 @@ function EmptyState({
       <div className="mt-4 w-full max-w-3xl">
         <div className="card">
           <div className="grid gap-6 md:grid-cols-[auto_1fr] md:items-center">
-            <div className="flex justify-center">
+            <div className="-mx-2 flex justify-center overflow-x-auto px-2">
               <SampleGrid />
             </div>
             <div className="text-left">
@@ -262,7 +262,7 @@ async function PoolCard({
         <span className="badge bg-forest/10 text-forest">Wk {pool.activeWeekNumber}</span>
       </div>
 
-      <div className="flex justify-center">
+      <div className="-mx-2 flex justify-center overflow-x-auto px-2">
         <Grid
           squares={gridSquares}
           rowDigits={activeWeek?.rowDigits}
