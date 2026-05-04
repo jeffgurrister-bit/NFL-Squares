@@ -39,8 +39,8 @@ export function Grid({
   const cd = parseDigits(colDigits ?? null);
   const [pending, setPending] = useState<string | null>(null);
 
-  const cellSize = size === "sm" ? "h-9 w-9 text-[10px]" : "h-12 w-12 text-xs";
-  const headerSize = size === "sm" ? "h-9 w-9 text-xs" : "h-12 w-12 text-sm";
+  const cellSize = size === "sm" ? "h-7 w-7 text-[10px] sm:h-9 sm:w-9" : "h-12 w-12 text-xs";
+  const headerSize = size === "sm" ? "h-7 w-7 text-[11px] sm:h-9 sm:w-9 sm:text-xs" : "h-12 w-12 text-sm";
 
   const isHighlightRow = (i: number) =>
     rd && highlight?.rowDigit != null && rd[i] === highlight.rowDigit;

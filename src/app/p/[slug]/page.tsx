@@ -111,7 +111,7 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr]">
-          <section className="card">
+          <section className="card overflow-x-auto">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-base font-bold text-ink">The Grid</h2>
               <span className="badge bg-accent-gold text-ink">
