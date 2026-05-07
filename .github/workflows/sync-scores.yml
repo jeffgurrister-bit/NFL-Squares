@@ -1,0 +1,33 @@
+name: Sync NFL scores
+
+# Pings the deployed app's /api/cron/sync-scores endpoint, which upserts
+# scores for any week that has non-final games.
+#
+# This complements the daily Vercel cron — use it for near-live updates
+# during game days. Toggle on/off via the "Run workflow" button in the
+# Actions tab, or change the schedule below.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   - APP_URL      e.g. https://nfl-squares-rho.vercel.app
+#   - CRON_SECRET  same value you set in Vercel env vars
+#
+# Default schedule: every 15 minutes Sun/Mon/Thu (NFL game days, US time).
+
+on:
+  schedule:
+    # Sun 1 PM ET → 6 AM UTC, run through Mon 1 AM ET → 5 AM UTC.
+    # Cron is in UTC. Game windows: Thursday night, Sunday all day, Monday night.
+    # Every 15 minutes during likely-game hours:
+    - cron: "*/15 17-23 * * 0,1,4"
+    - cron: "*/15 0-4 * * 1,2,5"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit sync endpoint
+        run: |
+          curl -fsS \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/sync-scores" || exit 1
