@@ -210,6 +210,7 @@ function SampleGrid() {
       colDigits="5347816209"
       highlight={{ rowDigit: 3, colDigit: 9 }}
       reverseHighlight={{ rowDigit: 9, colDigit: 3 }}
+      showNumbers
       size="sm"
     />
   );
@@ -286,6 +287,7 @@ async function PoolCard({
               : undefined
           }
           size="sm"
+          showNumbers
         />
       </div>
 

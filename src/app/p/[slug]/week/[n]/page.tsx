@@ -156,6 +156,7 @@ export default async function WeekPage({
                 rowDigits={pw.rowDigits}
                 colDigits={pw.colDigits}
                 showAxisLabels
+                showNumbers
                 highlight={
                   games.length > 0
                     ? { rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }
