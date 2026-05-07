@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { PoolHeader } from "@/components/PoolHeader";
 import { Grid, type GridSquare } from "@/components/Grid";
 import { weekTotals, allFinal } from "@/lib/scoring";
+
+const MIN_WEEK = 1;
+const MAX_WEEK = 22; // 18 regular + 4 playoff
 
 export default async function WeekPage({
   params,
@@ -11,7 +15,7 @@ export default async function WeekPage({
 }) {
   const { slug, n } = await params;
   const weekNumber = Number(n);
-  if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > 18) notFound();
+  if (!Number.isInteger(weekNumber) || weekNumber < MIN_WEEK || weekNumber > MAX_WEEK) notFound();
 
   const pool = await prisma.pool.findUnique({
     where: { slug },
@@ -43,7 +47,43 @@ export default async function WeekPage({
     <>
       <PoolHeader poolName={pool.name} poolSlug={pool.slug} activeWeek={pool.activeWeekNumber} current="week" />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-3xl font-bold text-ink">Week {weekNumber}</h1>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-bold text-ink">Week {weekNumber}</h1>
+          <div className="flex items-center gap-2">
+            {weekNumber > MIN_WEEK ? (
+              <Link
+                href={`/p/${pool.slug}/week/${weekNumber - 1}`}
+                className="btn-secondary"
+              >
+                ← Wk {weekNumber - 1}
+              </Link>
+            ) : (
+              <button type="button" disabled className="btn-secondary opacity-40">
+                ← Wk
+              </button>
+            )}
+            {!isActive && (
+              <Link
+                href={`/p/${pool.slug}/week/${pool.activeWeekNumber}`}
+                className="text-xs font-semibold text-forest underline"
+              >
+                Jump to active (Wk {pool.activeWeekNumber})
+              </Link>
+            )}
+            {weekNumber < MAX_WEEK ? (
+              <Link
+                href={`/p/${pool.slug}/week/${weekNumber + 1}`}
+                className="btn-secondary"
+              >
+                Wk {weekNumber + 1} →
+              </Link>
+            ) : (
+              <button type="button" disabled className="btn-secondary opacity-40">
+                Wk →
+              </button>
+            )}
+          </div>
+        </div>
         <div className="mt-2 flex flex-wrap gap-2">
           {isActive && <span className="badge bg-forest text-white">Active Week</span>}
           {pw?.rowDigits && <span className="badge bg-accent-gold text-ink">Digits Randomized</span>}
