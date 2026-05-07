@@ -5,6 +5,7 @@ import { PoolHeader } from "@/components/PoolHeader";
 import { Grid, type GridSquare } from "@/components/Grid";
 import { dollars } from "@/lib/format";
 import { weekTotals, allFinal } from "@/lib/scoring";
+import { parseDigits } from "@/lib/digits";
 import { auth } from "@/auth";
 import { JoinPoolButton } from "./JoinPoolButton";
 
@@ -69,9 +70,25 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
     break;
   }
 
-  const mySquareCount = myParticipant
-    ? pool.squares.filter((s) => s.participantId === myParticipant.id).length
-    : 0;
+  const mySquares = myParticipant
+    ? pool.squares.filter((s) => s.participantId === myParticipant.id)
+    : [];
+  const mySquareCount = mySquares.length;
+
+  // For the active week, derive the digit pair each of the user's squares
+  // represents, given that week's randomized headers.
+  const rd = parseDigits(activeWeek?.rowDigits ?? null);
+  const cd = parseDigits(activeWeek?.colDigits ?? null);
+  const myNumbersThisWeek = rd && cd
+    ? mySquares.map((s) => ({
+        squareNumber: s.row * 10 + s.col + 1,
+        // Convention: row = losers (left), col = winners (top).
+        winnersDigit: cd[s.col],
+        losersDigit: rd[s.row],
+        isWinner: isComplete && cd[s.col] === totals.winnersDigit && rd[s.row] === totals.losersDigit,
+        isReverse: isComplete && cd[s.col] === totals.losersDigit && rd[s.row] === totals.winnersDigit,
+      }))
+    : [];
 
   return (
     <>
@@ -110,6 +127,52 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
           />
           <Stat label="Latest Winner" value={latestWinner ?? "None yet"} />
         </div>
+
+        {isMember && mySquareCount > 0 && (
+          <section className="mb-6 card">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-ink">Your numbers this week</h2>
+                <p className="text-xs text-ink/60">
+                  Each of your squares maps to a (winners&apos; digit, losers&apos; digit) pair
+                  for Week {pool.activeWeekNumber}.
+                </p>
+              </div>
+              {isComplete && (
+                <p className="text-xs text-ink/60">
+                  Result: <span className="font-bold text-ink">W{totals.winnersDigit} / L{totals.losersDigit}</span>
+                </p>
+              )}
+            </div>
+            {!activeWeek?.rowDigits ? (
+              <p className="text-sm text-ink/60">
+                Digits haven&apos;t been randomized for this week yet. Check back closer to kickoff.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {myNumbersThisWeek.map((n) => (
+                  <div
+                    key={n.squareNumber}
+                    className={`rounded-md border px-3 py-2 text-sm ${
+                      n.isWinner
+                        ? "border-accent-gold bg-accent-goldSoft font-bold text-ink"
+                        : n.isReverse
+                          ? "border-forest bg-forest/10 font-semibold text-ink"
+                          : "border-line bg-white text-ink"
+                    }`}
+                  >
+                    <span className="text-xs text-ink/50">#{n.squareNumber}</span>
+                    <span className="mx-2 font-mono">
+                      W{n.winnersDigit} / L{n.losersDigit}
+                    </span>
+                    {n.isWinner && <span className="text-accent-gold">★ WIN</span>}
+                    {n.isReverse && <span className="text-forest">↺ reverse</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_1fr]">
           <section className="card overflow-x-auto">
