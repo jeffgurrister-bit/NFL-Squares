@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { signOutAction } from "@/app/actions/auth";
 import { dollars } from "@/lib/format";
 import { Grid, type GridSquare } from "@/components/Grid";
 import { weekTotals, allFinal } from "@/lib/scoring";
+import { parseDigits } from "@/lib/digits";
+import { computeWinningsByParticipant } from "@/lib/payouts";
 import { AdminBootstrapBanner } from "./_components/AdminBootstrapBanner";
 import { NFLBar } from "./_components/NFLBar";
 import { GoogleButton } from "./login/GoogleButton";
@@ -27,16 +28,10 @@ export default async function Home() {
       squares: { include: { participant: true } },
       participants: true,
       poolWeeks: true,
+      payments: true,
     },
     orderBy: { createdAt: "asc" },
   });
-
-  // Convenience redirect: a non-admin who is in exactly one pool doesn't
-  // benefit from the "Your Pools" hub — drop them straight into their pool.
-  // Admins always see the dashboard so they can manage every pool.
-  if (!isAdmin && myPools.length === 1) {
-    redirect(`/p/${myPools[0].slug}`);
-  }
 
   const allPools = isAdmin
     ? await prisma.pool.findMany({
@@ -45,12 +40,42 @@ export default async function Home() {
           squares: { include: { participant: true } },
           participants: true,
           poolWeeks: true,
+          payments: true,
         },
         orderBy: { createdAt: "asc" },
       })
     : [];
 
   const hasPools = myPools.length > 0 || allPools.length > 0;
+
+  // Personal aggregate stats across all of the user's joined pools.
+  let myTotalSquares = 0;
+  let myTotalEntryOwed = 0;
+  let myTotalEntryPaid = 0;
+  let myTotalWon = 0;
+  let myTotalPaidOut = 0;
+  for (const pool of myPools) {
+    const me = pool.participants.find((p) => p.userId === user.id);
+    if (!me) continue;
+    const sq = pool.squares.filter((s) => s.participantId === me.id).length;
+    myTotalSquares += sq;
+    myTotalEntryOwed += sq * pool.entryFeePerSquare;
+    // entryFeePaid lives on Participant — fetched via include below
+    const w = await computeWinningsByParticipant(pool.id);
+    myTotalWon += w.get(me.id) ?? 0;
+    myTotalPaidOut += pool.payments
+      .filter((pmt) => pmt.participantId === me.id)
+      .reduce((s, pmt) => s + pmt.amount, 0);
+  }
+  // Re-fetch user's participants to get entryFeePaid (couldn't include both
+  // directions cleanly above without doubling queries).
+  const myParticipants = await prisma.participant.findMany({
+    where: { userId: user.id },
+    select: { id: true, entryFeePaid: true },
+  });
+  myTotalEntryPaid = myParticipants.reduce((s, p) => s + p.entryFeePaid, 0);
+  const myEntryOutstanding = myTotalEntryOwed - myTotalEntryPaid;
+  const myWinningsBalance = myTotalWon - myTotalPaidOut;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -96,10 +121,44 @@ export default async function Home() {
 
       {hasPools ? (
         <div className="space-y-8">
-          <h1 className="text-2xl font-bold text-ink">
+          {myPools.length > 0 && (
+            <section>
+              <h1 className="mb-3 text-2xl font-bold text-ink">Your Summary</h1>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <StatCard label="Pools joined" value={String(myPools.length)} />
+                <StatCard label="Your squares" value={String(myTotalSquares)} />
+                <StatCard
+                  label="Total winnings"
+                  value={dollars(myTotalWon)}
+                  sub={
+                    myTotalPaidOut > 0
+                      ? `${dollars(myTotalPaidOut)} paid out`
+                      : undefined
+                  }
+                />
+                <StatCard
+                  label={myEntryOutstanding > 0 ? "Entry due" : "Entry status"}
+                  value={
+                    myEntryOutstanding > 0
+                      ? dollars(myEntryOutstanding)
+                      : "Paid up ✓"
+                  }
+                  sub={`${dollars(myTotalEntryPaid)} of ${dollars(myTotalEntryOwed)}`}
+                  accent={myEntryOutstanding > 0 ? "red" : "green"}
+                />
+              </div>
+              {myWinningsBalance > 0 && (
+                <p className="mt-2 text-xs text-ink/60">
+                  You&apos;re owed <span className="font-bold text-forest">{dollars(myWinningsBalance)}</span> in
+                  winnings the admin hasn&apos;t paid out yet.
+                </p>
+              )}
+            </section>
+          )}
+          <h2 className="text-2xl font-bold text-ink">
             Your Pools
             {isAdmin && <span className="ml-2 text-sm font-normal text-ink/50">(admin)</span>}
-          </h1>
+          </h2>
           {myPools.length > 0 && (
             <section>
               <p className="label mb-3">Joined ({myPools.length})</p>
@@ -128,6 +187,28 @@ export default async function Home() {
         />
       )}
     </main>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: "red" | "green";
+}) {
+  const valueClass =
+    accent === "red" ? "text-red-600" : accent === "green" ? "text-forest" : "text-ink";
+  return (
+    <div className="card">
+      <p className="label">{label}</p>
+      <p className={`mt-2 text-2xl font-bold ${valueClass}`}>{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-ink/50">{sub}</p>}
+    </div>
   );
 }
 
@@ -227,6 +308,7 @@ type PoolWithRelations = {
   squares: Array<{ row: number; col: number; participantId: string; participant: { name: string; color: string; userId: string | null } }>;
   participants: Array<{ id: string; userId: string | null }>;
   poolWeeks: Array<{ weekNumber: number; rowDigits: string | null; colDigits: string | null }>;
+  payments: Array<{ participantId: string; amount: number }>;
 };
 
 async function PoolCard({
@@ -239,9 +321,10 @@ async function PoolCard({
   mine?: boolean;
 }) {
   const myParticipant = pool.participants.find((p) => p.userId === userId);
-  const mySquares = myParticipant
-    ? pool.squares.filter((s) => s.participantId === myParticipant.id).length
-    : 0;
+  const myOwnedSquares = myParticipant
+    ? pool.squares.filter((s) => s.participantId === myParticipant.id)
+    : [];
+  const mySquaresCount = myOwnedSquares.length;
 
   const activeWeek = pool.poolWeeks.find((w) => w.weekNumber === pool.activeWeekNumber);
   const games = await prisma.game.findMany({ where: { weekNumber: pool.activeWeekNumber } });
@@ -255,6 +338,19 @@ async function PoolCard({
     participantName: s.participant.name,
     color: s.participant.color,
   }));
+
+  // Compute the (winners, losers) digit pair for each of my squares for the
+  // active week, given that week's randomized headers.
+  const rd = parseDigits(activeWeek?.rowDigits ?? null);
+  const cd = parseDigits(activeWeek?.colDigits ?? null);
+  const myNumbersThisWeek = mine && rd && cd
+    ? myOwnedSquares.map((s) => ({
+        squareNumber: s.row * 10 + s.col + 1,
+        // Convention: row = losers (left), col = winners (top).
+        winnersDigit: cd[s.col],
+        losersDigit: rd[s.row],
+      }))
+    : [];
 
   return (
     <Link
@@ -291,13 +387,30 @@ async function PoolCard({
         />
       </div>
 
+      {mine && myNumbersThisWeek.length > 0 && (
+        <div className="rounded-md bg-surface px-3 py-2 text-xs">
+          <p className="label mb-1">Your numbers this week</p>
+          <div className="flex flex-wrap gap-1.5">
+            {myNumbersThisWeek.map((n) => (
+              <span
+                key={n.squareNumber}
+                className="inline-flex items-center gap-1 rounded border border-line bg-white px-1.5 py-0.5 font-mono text-[11px]"
+              >
+                <span className="text-ink/40">#{n.squareNumber}</span>
+                <span className="font-semibold text-ink">W{n.winnersDigit}/L{n.losersDigit}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between border-t border-line pt-3 text-sm">
         <span className="text-ink/70">
           <span className="font-bold text-ink">{pool.squares.length}</span> / 100 claimed
           {mine && (
             <>
               {" · "}
-              <span className="font-bold text-ink">{mySquares}</span> yours
+              <span className="font-bold text-ink">{mySquaresCount}</span> yours
             </>
           )}
         </span>
