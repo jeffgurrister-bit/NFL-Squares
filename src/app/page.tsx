@@ -48,24 +48,52 @@ export default async function Home() {
 
   const hasPools = myPools.length > 0 || allPools.length > 0;
 
-  // Personal aggregate stats across all of the user's joined pools.
+  // Personal aggregate stats + per-pool weekly digit pairs across all of
+  // the user's joined pools.
   let myTotalSquares = 0;
   let myTotalEntryOwed = 0;
   let myTotalEntryPaid = 0;
   let myTotalWon = 0;
   let myTotalPaidOut = 0;
+  type PoolNumbers = {
+    poolId: string;
+    poolSlug: string;
+    poolName: string;
+    activeWeek: number;
+    digitsRandomized: boolean;
+    numbers: Array<{ squareNumber: number; winnersDigit: number; losersDigit: number }>;
+  };
+  const numbersByPool: PoolNumbers[] = [];
   for (const pool of myPools) {
     const me = pool.participants.find((p) => p.userId === user.id);
     if (!me) continue;
-    const sq = pool.squares.filter((s) => s.participantId === me.id).length;
-    myTotalSquares += sq;
-    myTotalEntryOwed += sq * pool.entryFeePerSquare;
-    // entryFeePaid lives on Participant — fetched via include below
+    const myCells = pool.squares.filter((s) => s.participantId === me.id);
+    myTotalSquares += myCells.length;
+    myTotalEntryOwed += myCells.length * pool.entryFeePerSquare;
     const w = await computeWinningsByParticipant(pool.id);
     myTotalWon += w.get(me.id) ?? 0;
     myTotalPaidOut += pool.payments
       .filter((pmt) => pmt.participantId === me.id)
       .reduce((s, pmt) => s + pmt.amount, 0);
+
+    const activeWeek = pool.poolWeeks.find((w) => w.weekNumber === pool.activeWeekNumber);
+    const rd = parseDigits(activeWeek?.rowDigits ?? null);
+    const cd = parseDigits(activeWeek?.colDigits ?? null);
+    numbersByPool.push({
+      poolId: pool.id,
+      poolSlug: pool.slug,
+      poolName: pool.name,
+      activeWeek: pool.activeWeekNumber,
+      digitsRandomized: !!(rd && cd),
+      // Convention: row = losers (left), col = winners (top).
+      numbers: rd && cd
+        ? myCells.map((s) => ({
+            squareNumber: s.row * 10 + s.col + 1,
+            winnersDigit: cd[s.col],
+            losersDigit: rd[s.row],
+          }))
+        : [],
+    });
   }
   // Re-fetch user's participants to get entryFeePaid (couldn't include both
   // directions cleanly above without doubling queries).
@@ -152,6 +180,45 @@ export default async function Home() {
                   You&apos;re owed <span className="font-bold text-forest">{dollars(myWinningsBalance)}</span> in
                   winnings the admin hasn&apos;t paid out yet.
                 </p>
+              )}
+
+              {numbersByPool.some((p) => p.numbers.length > 0 || !p.digitsRandomized) && (
+                <div className="card mt-3">
+                  <p className="label">Your numbers this week</p>
+                  <p className="text-[11px] text-ink/50">Format: square # · W (winners&apos; digit) – L (losers&apos; digit).</p>
+                  <div className="mt-2 space-y-2">
+                    {numbersByPool.map((p) =>
+                      p.numbers.length === 0 && p.digitsRandomized ? null : (
+                        <div key={p.poolId} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                          <Link
+                            href={`/p/${p.poolSlug}`}
+                            className="font-semibold text-ink hover:underline"
+                          >
+                            {p.poolName}
+                          </Link>
+                          <span className="text-ink/50">Wk {p.activeWeek}:</span>
+                          {!p.digitsRandomized ? (
+                            <span className="text-xs text-ink/50 italic">
+                              digits not randomized yet
+                            </span>
+                          ) : (
+                            p.numbers.map((n) => (
+                              <span
+                                key={n.squareNumber}
+                                className="inline-flex items-center gap-1 rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[11px]"
+                              >
+                                <span className="text-ink/40">#{n.squareNumber}</span>
+                                <span className="font-semibold text-ink">
+                                  W{n.winnersDigit}–L{n.losersDigit}
+                                </span>
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </div>
               )}
             </section>
           )}
@@ -361,7 +428,9 @@ async function PoolCard({
         <div>
           <h2 className="text-lg font-bold text-ink">{pool.name}</h2>
           <p className="mt-0.5 text-sm text-ink/60">
-            {dollars(pool.entryFeePerSquare)}/square · {dollars(pool.weeklyPrize)} weekly
+            {dollars(pool.entryFeePerSquare)}/square ·{" "}
+            {dollars(pool.weeklyPrize)} win
+            {pool.reverseWeeklyPrize > 0 && ` + ${dollars(pool.reverseWeeklyPrize)} reverse`}
           </p>
         </div>
         <span className="badge bg-forest/10 text-forest">Wk {pool.activeWeekNumber}</span>
