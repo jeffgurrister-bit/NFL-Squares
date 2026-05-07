@@ -80,13 +80,13 @@ export function WeekManager({ poolId, poolSlug, weekNumber, poolWeek, isActive, 
         {poolWeek?.rowDigits && poolWeek.colDigits && (
           <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
             <div className="rounded-md bg-surface p-3">
-              <p className="label">Row digits (winners)</p>
+              <p className="label">Row digits (losers, left side)</p>
               <p className="mt-1 font-mono text-base text-ink">
                 {poolWeek.rowDigits.split("").join(" ")}
               </p>
             </div>
             <div className="rounded-md bg-surface p-3">
-              <p className="label">Col digits (losers)</p>
+              <p className="label">Col digits (winners, top)</p>
               <p className="mt-1 font-mono text-base text-ink">
                 {poolWeek.colDigits.split("").join(" ")}
               </p>

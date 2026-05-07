@@ -6,10 +6,10 @@ import { weekTotals, allFinal } from "./scoring";
 // across all completed weeks. A week counts as completed if all of its games
 // are final and the pool's digit headers for that week have been randomized.
 //
-// Convention used here:
-//   row digit = winners' total last digit
-//   col digit = losers' total last digit
-//   reverse  = swapped (row=losers, col=winners)
+// Convention (matches the displayed grid):
+//   col digit = winners' total last digit  (rendered along the TOP)
+//   row digit = losers'  total last digit  (rendered along the LEFT)
+//   reverse   = swapped (col=losers, row=winners)
 export async function computeWinningsByParticipant(poolId: string): Promise<Map<string, number>> {
   const pool = await prisma.pool.findUnique({
     where: { id: poolId },
@@ -30,8 +30,11 @@ export async function computeWinningsByParticipant(poolId: string): Promise<Map<
     if (!allFinal(games)) continue;
     const { winnersDigit, losersDigit } = weekTotals(games);
 
-    const winningCell = cellForDigitPair(pw.rowDigits, pw.colDigits, winnersDigit, losersDigit);
-    const reverseCell = cellForDigitPair(pw.rowDigits, pw.colDigits, losersDigit, winnersDigit);
+    // cellForDigitPair signature is (rowDigits, colDigits, rowDigit, colDigit).
+    // With our convention (cols=winners, rows=losers): the winning cell is
+    // at row=losersDigit, col=winnersDigit; reverse is the swap.
+    const winningCell = cellForDigitPair(pw.rowDigits, pw.colDigits, losersDigit, winnersDigit);
+    const reverseCell = cellForDigitPair(pw.rowDigits, pw.colDigits, winnersDigit, losersDigit);
 
     if (winningCell) {
       const pid = squareAt.get(`${winningCell.row},${winningCell.col}`);

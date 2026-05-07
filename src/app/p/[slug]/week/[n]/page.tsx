@@ -115,14 +115,15 @@ export default async function WeekPage({
                 squares={gridSquares}
                 rowDigits={pw.rowDigits}
                 colDigits={pw.colDigits}
+                showAxisLabels
                 highlight={
                   games.length > 0
-                    ? { rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }
+                    ? { rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }
                     : undefined
                 }
                 reverseHighlight={
                   games.length > 0
-                    ? { rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }
+                    ? { rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }
                     : undefined
                 }
                 size="sm"

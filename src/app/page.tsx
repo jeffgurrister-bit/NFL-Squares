@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { signOutAction } from "@/app/actions/auth";
@@ -29,6 +30,13 @@ export default async function Home() {
     },
     orderBy: { createdAt: "asc" },
   });
+
+  // Convenience redirect: a non-admin who is in exactly one pool doesn't
+  // benefit from the "Your Pools" hub — drop them straight into their pool.
+  // Admins always see the dashboard so they can manage every pool.
+  if (!isAdmin && myPools.length === 1) {
+    redirect(`/p/${myPools[0].slug}`);
+  }
 
   const allPools = isAdmin
     ? await prisma.pool.findMany({
@@ -269,12 +277,12 @@ async function PoolCard({
           colDigits={activeWeek?.colDigits}
           highlight={
             isComplete
-              ? { rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }
+              ? { rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }
               : undefined
           }
           reverseHighlight={
             isComplete
-              ? { rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }
+              ? { rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }
               : undefined
           }
           size="sm"

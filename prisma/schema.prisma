@@ -72,6 +72,8 @@ model Pool {
   weeklyPrize         Int           // dollars to the winning square
   reverseWeeklyPrize  Int           // dollars to the reverse square
   activeWeekNumber    Int           @default(1)
+  zelleHandle         String?       // e.g. "(555) 555-7687" or "jimmie@example.com"
+  venmoHandle         String?       // e.g. "Jimmie-Perkins" (no @ — we add it in the UI)
   createdAt           DateTime      @default(now())
 
   participants  Participant[]
@@ -82,12 +84,13 @@ model Pool {
 }
 
 model Participant {
-  id        String    @id @default(cuid())
-  poolId    String
-  userId    String?   // nullable for backwards-compat / admin-created participants
-  name      String
-  color     String    // hex, e.g. #fecaca
-  createdAt DateTime  @default(now())
+  id            String   @id @default(cuid())
+  poolId        String
+  userId        String?  // nullable for backwards-compat / admin-created participants
+  name          String
+  color         String   // hex, e.g. #fecaca
+  entryFeePaid  Int      @default(0) // cumulative dollars admin has marked as received toward entry fees
+  createdAt     DateTime @default(now())
 
   pool      Pool      @relation(fields: [poolId], references: [id], onDelete: Cascade)
   user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)

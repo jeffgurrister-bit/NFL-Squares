@@ -115,6 +115,104 @@ export async function claimSquare(poolId: string, row: number, col: number) {
   }
 }
 
+// Batch claim: takes a list of (row, col) picks, ensures the user is a
+// participant of the pool, then creates all squares in a single transaction.
+// If ANY of the requested squares is already taken, the whole transaction
+// rolls back and we report which squares failed so the UI can re-render.
+//
+// Returns: { ok: true, count } on success, or { ok: false, taken: [...] }
+// listing the (row, col) pairs that another user grabbed.
+export async function claimSquares(
+  poolId: string,
+  picks: Array<{ row: number; col: number }>,
+) {
+  if (!Array.isArray(picks) || picks.length === 0) {
+    throw new Error("No squares selected.");
+  }
+  for (const p of picks) {
+    if (!Number.isInteger(p.row) || !Number.isInteger(p.col) || p.row < 0 || p.row > 9 || p.col < 0 || p.col > 9) {
+      throw new Error("Invalid square in selection.");
+    }
+  }
+  // Dedupe (in case a square slipped in twice from rapid clicks).
+  const seen = new Set<string>();
+  const unique = picks.filter((p) => {
+    const k = `${p.row},${p.col}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  const session = await auth();
+  const userId = (session?.user as { id?: string } | undefined)?.id;
+  if (!userId) redirect("/login");
+
+  // Auto-join the user to the pool if they aren't already a participant.
+  const me =
+    (await prisma.participant.findFirst({ where: { poolId, userId } })) ||
+    (await prisma.participant.create({
+      data: {
+        poolId,
+        userId,
+        name: await uniqueName(poolId, await displayNameFor(userId)),
+        color: pickColor(await prisma.participant.count({ where: { poolId } })),
+      },
+    }));
+
+  // Pre-flight: which of these are already taken?
+  const existing = await prisma.square.findMany({
+    where: {
+      poolId,
+      OR: unique.map((p) => ({ row: p.row, col: p.col })),
+    },
+    select: { row: true, col: true },
+  });
+  if (existing.length > 0) {
+    return {
+      ok: false as const,
+      taken: existing.map((s) => ({ row: s.row, col: s.col })),
+    };
+  }
+
+  // All-or-nothing in one transaction.
+  try {
+    await prisma.$transaction(
+      unique.map((p) =>
+        prisma.square.create({
+          data: { poolId, participantId: me.id, row: p.row, col: p.col },
+        }),
+      ),
+    );
+  } catch (e) {
+    if (isUniqueViolation(e)) {
+      // Race: someone snagged one of these between pre-flight and create.
+      const nowExisting = await prisma.square.findMany({
+        where: {
+          poolId,
+          OR: unique.map((p) => ({ row: p.row, col: p.col })),
+        },
+        select: { row: true, col: true },
+      });
+      return {
+        ok: false as const,
+        taken: nowExisting.map((s) => ({ row: s.row, col: s.col })),
+      };
+    }
+    throw e;
+  }
+
+  await prisma.activityLog.create({
+    data: { poolId, message: `${me.name} claimed ${unique.length} square${unique.length === 1 ? "" : "s"}` },
+  });
+  const slug = (await prisma.pool.findUnique({ where: { id: poolId } }))?.slug;
+  if (slug) {
+    revalidatePath("/");
+    revalidatePath(`/p/${slug}`);
+    revalidatePath(`/p/${slug}/claim`);
+  }
+  return { ok: true as const, count: unique.length };
+}
+
 export async function unclaimSquare(squareId: string) {
   const session = await auth();
   const isAdmin = !!(session?.user as { isAdmin?: boolean } | undefined)?.isAdmin;
