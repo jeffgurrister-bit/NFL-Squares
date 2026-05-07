@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { signInWithCredentials } from "@/app/actions/auth";
 
-export function LoginForm() {
+export function LoginForm({ next }: { next?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -18,6 +18,7 @@ export function LoginForm() {
       }}
       className="space-y-3"
     >
+      {next && <input type="hidden" name="next" value={next} />}
       <div>
         <label className="label">Username or email</label>
         <input

@@ -7,6 +7,7 @@ import { dollars } from "@/lib/format";
 import { weekTotals, allFinal } from "@/lib/scoring";
 import { parseDigits } from "@/lib/digits";
 import { auth } from "@/auth";
+import { InviteLinkButton } from "@/components/InviteLinkButton";
 import { JoinPoolButton } from "./JoinPoolButton";
 
 function timeAgo(date: Date): string {
@@ -102,13 +103,16 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
               {dollars(pool.reverseWeeklyPrize)} reverse
             </p>
           </div>
-          {isMember ? (
-            <Link href={`/p/${pool.slug}/claim`} className="btn-primary">
-              Claim Squares
-            </Link>
-          ) : (
-            <JoinPoolButton poolId={pool.id} />
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <InviteLinkButton poolSlug={pool.slug} variant="secondary" />
+            {isMember ? (
+              <Link href={`/p/${pool.slug}/claim`} className="btn-primary">
+                Claim Squares
+              </Link>
+            ) : (
+              <JoinPoolButton poolId={pool.id} />
+            )}
+          </div>
         </div>
 
         {!isMember && !isAdmin && (

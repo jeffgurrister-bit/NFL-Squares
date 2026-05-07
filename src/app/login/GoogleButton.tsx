@@ -2,9 +2,13 @@
 
 import { signInWithGoogle } from "@/app/actions/auth";
 
-export function GoogleButton() {
+export function GoogleButton({ next }: { next?: string }) {
   return (
-    <form action={signInWithGoogle}>
+    <form
+      action={async () => {
+        await signInWithGoogle(next);
+      }}
+    >
       <button
         type="submit"
         className="flex w-full items-center justify-center gap-3 rounded-md border border-line bg-white px-4 py-2.5 text-sm font-semibold text-ink transition hover:bg-surface"

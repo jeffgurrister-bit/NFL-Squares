@@ -4,9 +4,21 @@ import { auth } from "@/auth";
 import { SignupForm } from "./SignupForm";
 import { GoogleButton } from "../login/GoogleButton";
 
-export default async function SignupPage() {
+function safeNext(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return undefined;
+  return raw;
+}
+
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const session = await auth();
-  if (session?.user) redirect("/");
+  const sp = await searchParams;
+  const next = safeNext(sp.next);
+  if (session?.user) redirect(next ?? "/");
   const googleEnabled = !!(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
   return (
@@ -27,17 +39,20 @@ export default async function SignupPage() {
       <section className="card">
         {googleEnabled && (
           <>
-            <GoogleButton />
+            <GoogleButton next={next} />
             <div className="relative my-5 text-center text-[10px] font-semibold uppercase tracking-wide text-ink/40">
               <span className="bg-white px-2">or with username</span>
               <div className="absolute left-0 right-0 top-1/2 -z-0 border-t border-line" />
             </div>
           </>
         )}
-        <SignupForm />
+        <SignupForm next={next} />
         <p className="mt-4 text-sm text-ink/70">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-forest underline">
+          <Link
+            href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+            className="font-semibold text-forest underline"
+          >
             Sign in
           </Link>
         </p>
