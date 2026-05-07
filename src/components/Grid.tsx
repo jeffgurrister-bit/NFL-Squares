@@ -187,11 +187,16 @@ export function Grid({
                         disabled={!clickable || isPending}
                         onClick={() => handleClick(i, j)}
                         style={bg ? { backgroundColor: bg } : undefined}
-                        className={`${cellSize} grid place-items-center rounded-md border text-center font-medium transition ${extraClass} ${
+                        className={`${cellSize} relative grid place-items-center rounded-md border text-center font-medium transition ${extraClass} ${
                           clickable ? "hover:border-forest cursor-pointer" : "cursor-default"
                         }`}
                       >
-                        {label || (showNumbers && !sq ? (
+                        {showNumbers && (sq || isSelected) && (
+                          <span className="absolute left-0.5 top-0 text-[7px] leading-tight text-ink/40">
+                            {cellNumber(i, j)}
+                          </span>
+                        )}
+                        {label || (showNumbers && !sq && !isSelected ? (
                           <span className="text-ink/30">{cellNumber(i, j)}</span>
                         ) : "")}
                       </button>

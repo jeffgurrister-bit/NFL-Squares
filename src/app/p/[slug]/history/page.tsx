@@ -215,6 +215,7 @@ function SelectedWeek({
           rowDigits={pw.rowDigits}
           colDigits={pw.colDigits}
           showAxisLabels
+          showNumbers
           highlight={{ rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }}
           reverseHighlight={{ rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }}
           size="sm"

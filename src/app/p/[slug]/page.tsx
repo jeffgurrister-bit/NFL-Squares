@@ -198,6 +198,7 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
                   : undefined
               }
               showAxisLabels
+              showNumbers
             />
           </section>
 
