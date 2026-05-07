@@ -5,6 +5,7 @@ import { PoolHeader } from "@/components/PoolHeader";
 import { isAdmin } from "@/lib/admin";
 import { dollars } from "@/lib/format";
 import { computePaidOutByParticipant, computeWinningsByParticipant } from "@/lib/payouts";
+import { InviteLinkButton } from "@/components/InviteLinkButton";
 import { PaymentsTable } from "./PaymentsTable";
 import { WeekManager } from "./WeekManager";
 import { UserManagement } from "./UserManagement";
@@ -93,10 +94,15 @@ export default async function AdminPage({
     <>
       <PoolHeader poolName={pool.name} poolSlug={pool.slug} activeWeek={pool.activeWeekNumber} current="admin" />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="text-3xl font-bold text-ink">{pool.name} — Admin</h1>
-        <p className="mt-1 text-sm text-ink/60">
-          Manage this pool&apos;s weeks, digits, and player payments. Game scores below are shared across all pools.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold text-ink">{pool.name} — Admin</h1>
+            <p className="mt-1 text-sm text-ink/60">
+              Manage this pool&apos;s weeks, digits, and player payments. Game scores below are shared across all pools.
+            </p>
+          </div>
+          <InviteLinkButton poolSlug={pool.slug} />
+        </div>
 
         <section className="mt-6">
           <PoolSettings

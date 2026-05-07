@@ -12,10 +12,19 @@ import { signIn, signOut } from "@/auth";
 // so a later Google sign-in with the same address links to the same User.
 const IDENT_RE = /^[a-z0-9@._+-]{3,64}$/;
 
+// Whitelist a `next` URL to in-app paths only — no scheme, no host, no
+// protocol-relative — to prevent open-redirect mischief via form input.
+function safeNext(raw?: string | null): string {
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
+  return raw;
+}
+
 export async function signUpWithCredentials(formData: FormData) {
   const usernameRaw = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const displayName = String(formData.get("name") ?? "").trim() || usernameRaw;
+  const next = safeNext(formData.get("next") as string | null);
 
   if (!IDENT_RE.test(usernameRaw)) {
     return { error: "Username or email must be 3–64 characters (no spaces)." };
@@ -48,7 +57,7 @@ export async function signUpWithCredentials(formData: FormData) {
     await signIn("credentials", {
       username: usernameRaw,
       password,
-      redirectTo: "/",
+      redirectTo: next,
     });
   } catch (e) {
     if (e instanceof AuthError) {
@@ -64,8 +73,9 @@ export async function signUpWithCredentials(formData: FormData) {
 export async function signInWithCredentials(formData: FormData) {
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const next = safeNext(formData.get("next") as string | null);
   try {
-    await signIn("credentials", { username, password, redirectTo: "/" });
+    await signIn("credentials", { username, password, redirectTo: next });
     return { error: null };
   } catch (e) {
     // Auth.js v5 marks credential failures via AuthError.type, not Error.name.
@@ -77,8 +87,8 @@ export async function signInWithCredentials(formData: FormData) {
   }
 }
 
-export async function signInWithGoogle() {
-  await signIn("google", { redirectTo: "/" });
+export async function signInWithGoogle(next?: string) {
+  await signIn("google", { redirectTo: safeNext(next ?? null) });
 }
 
 export async function signOutAction() {

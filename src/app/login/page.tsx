@@ -4,9 +4,24 @@ import { auth } from "@/auth";
 import { LoginForm } from "./LoginForm";
 import { GoogleButton } from "./GoogleButton";
 
-export default async function LoginPage() {
+// Whitelist a `next` value to in-app paths only — no scheme, no host, no
+// protocol-relative — to prevent open-redirect mischief via the URL.
+function safeNext(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  if (!raw.startsWith("/")) return undefined;
+  if (raw.startsWith("//")) return undefined;
+  return raw;
+}
+
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
   const session = await auth();
-  if (session?.user) redirect("/");
+  const sp = await searchParams;
+  const next = safeNext(sp.next);
+  if (session?.user) redirect(next ?? "/");
   const googleEnabled = !!(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET);
 
   return (
@@ -36,7 +51,7 @@ export default async function LoginPage() {
           {googleEnabled && (
             <>
               <div className="mt-5">
-                <GoogleButton />
+                <GoogleButton next={next} />
               </div>
               <div className="relative my-5 text-center text-[10px] font-semibold uppercase tracking-wide text-ink/40">
                 <span className="bg-white px-2">or with username</span>
@@ -45,11 +60,14 @@ export default async function LoginPage() {
             </>
           )}
 
-          <LoginForm />
+          <LoginForm next={next} />
 
           <p className="mt-4 text-sm text-ink/70">
             New here?{" "}
-            <Link href="/signup" className="font-semibold text-forest underline">
+            <Link
+              href={next ? `/signup?next=${encodeURIComponent(next)}` : "/signup"}
+              className="font-semibold text-forest underline"
+            >
               Create an account
             </Link>
           </p>
