@@ -114,13 +114,13 @@ export function WeekManager({ poolId, poolSlug, weekNumber, poolWeek, isActive, 
             }
             className="btn-secondary"
           >
-            {pending === "espn" ? "Importing..." : "Import from ESPN"}
+            {pending === "espn" ? "Syncing..." : "Sync from ESPN"}
           </button>
         </div>
 
         <div className="mt-4 space-y-2">
           {games.length === 0 ? (
-            <p className="text-sm text-ink/60">No games for Week {weekNumber} yet. Import from ESPN or add manually below.</p>
+            <p className="text-sm text-ink/60">No games for Week {weekNumber} yet. Click <strong>Sync from ESPN</strong> or add manually below.</p>
           ) : (
             games.map((g) => <GameRow key={g.id} game={g} />)
           )}
