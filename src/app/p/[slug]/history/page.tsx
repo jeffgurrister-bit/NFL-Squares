@@ -76,11 +76,12 @@ export default async function HistoryPage({
                 {completedWeeks.map((pw) => {
                   const games = gamesByWeek.get(pw.weekNumber) ?? [];
                   const totals = weekTotals(games);
+                  // Convention: row digit = losers, col digit = winners.
                   const cell = cellForDigitPair(
                     pw.rowDigits,
                     pw.colDigits,
-                    totals.winnersDigit,
                     totals.losersDigit,
+                    totals.winnersDigit,
                   );
                   const winner = cell
                     ? pool.squares.find((s) => s.row === cell.row && s.col === cell.col)?.participant.name
@@ -146,8 +147,9 @@ function SelectedWeek({
   poolSlug: string;
 }) {
   const totals = weekTotals(games);
-  const winningCell = cellForDigitPair(pw.rowDigits, pw.colDigits, totals.winnersDigit, totals.losersDigit);
-  const reverseCell = cellForDigitPair(pw.rowDigits, pw.colDigits, totals.losersDigit, totals.winnersDigit);
+  // Convention: row digit = losers (left), col digit = winners (top).
+  const winningCell = cellForDigitPair(pw.rowDigits, pw.colDigits, totals.losersDigit, totals.winnersDigit);
+  const reverseCell = cellForDigitPair(pw.rowDigits, pw.colDigits, totals.winnersDigit, totals.losersDigit);
   const winnerName = winningCell
     ? squares.find((s) => s.row === winningCell.row && s.col === winningCell.col)?.participant.name
     : null;
@@ -163,13 +165,13 @@ function SelectedWeek({
         <SmallStat
           label="Winning Square"
           value={winnerName ?? "Unclaimed"}
-          sub={`(${totals.winnersDigit}, ${totals.losersDigit})`}
+          sub={`winners ${totals.winnersDigit}, losers ${totals.losersDigit}`}
           highlight
         />
         <SmallStat
           label="Reverse Square"
           value={reverseName ?? "Unclaimed"}
-          sub={`(${totals.losersDigit}, ${totals.winnersDigit})`}
+          sub={`winners ${totals.losersDigit}, losers ${totals.winnersDigit}`}
           highlight
         />
       </div>
@@ -212,8 +214,9 @@ function SelectedWeek({
           squares={gridSquares}
           rowDigits={pw.rowDigits}
           colDigits={pw.colDigits}
-          highlight={{ rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }}
-          reverseHighlight={{ rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }}
+          showAxisLabels
+          highlight={{ rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }}
+          reverseHighlight={{ rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }}
           size="sm"
         />
       </div>

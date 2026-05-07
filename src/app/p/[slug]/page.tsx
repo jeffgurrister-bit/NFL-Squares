@@ -60,8 +60,9 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
     const games = await prisma.game.findMany({ where: { weekNumber: pw.weekNumber } });
     if (!allFinal(games)) continue;
     const t = weekTotals(games);
-    const r = pw.rowDigits.indexOf(String(t.winnersDigit));
-    const c = pw.colDigits.indexOf(String(t.losersDigit));
+    // Convention: row = losers' digit (left), col = winners' digit (top).
+    const r = pw.rowDigits.indexOf(String(t.losersDigit));
+    const c = pw.colDigits.indexOf(String(t.winnersDigit));
     if (r === -1 || c === -1) continue;
     const sq = pool.squares.find((s) => s.row === r && s.col === c);
     latestWinner = sq ? `${sq.participant.name} (Wk ${pw.weekNumber})` : `Unclaimed (Wk ${pw.weekNumber})`;
@@ -125,14 +126,15 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
               colDigits={activeWeek?.colDigits}
               highlight={
                 isComplete
-                  ? { rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }
+                  ? { rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }
                   : undefined
               }
               reverseHighlight={
                 isComplete
-                  ? { rowDigit: totals.losersDigit, colDigit: totals.winnersDigit }
+                  ? { rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }
                   : undefined
               }
+              showAxisLabels
             />
           </section>
 

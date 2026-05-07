@@ -8,6 +8,7 @@ import { computePaidOutByParticipant, computeWinningsByParticipant } from "@/lib
 import { PaymentsTable } from "./PaymentsTable";
 import { WeekManager } from "./WeekManager";
 import { UserManagement } from "./UserManagement";
+import { PoolSettings } from "./PoolSettings";
 
 export default async function AdminPage({
   params,
@@ -62,6 +63,7 @@ export default async function AdminPage({
       color: p.color,
       squares: squareCount,
       owed: squareCount * pool.entryFeePerSquare,
+      entryFeePaid: p.entryFeePaid,
       won,
       paidOut: paid,
       balance: won - paid,
@@ -97,12 +99,26 @@ export default async function AdminPage({
         </p>
 
         <section className="mt-6">
+          <PoolSettings
+            poolId={pool.id}
+            initial={{
+              name: pool.name,
+              entryFeePerSquare: pool.entryFeePerSquare,
+              weeklyPrize: pool.weeklyPrize,
+              reverseWeeklyPrize: pool.reverseWeeklyPrize,
+              zelleHandle: pool.zelleHandle ?? "",
+              venmoHandle: pool.venmoHandle ?? "",
+            }}
+          />
+        </section>
+
+        <section className="mt-6">
           <div className="card">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className="text-base font-bold text-ink">Player Payments</h2>
                 <p className="mt-0.5 text-sm text-ink/60">
-                  Entry fee {dollars(pool.entryFeePerSquare)} per square. Weekly prize {dollars(pool.weeklyPrize)}, reverse-square prize {dollars(pool.reverseWeeklyPrize)}. Update each player&apos;s running paid-out total below.
+                  Entry fee {dollars(pool.entryFeePerSquare)} per square. Weekly prize {dollars(pool.weeklyPrize)}, reverse-square prize {dollars(pool.reverseWeeklyPrize)}. Track entry fees received and weekly payouts below.
                 </p>
               </div>
               <div className="flex gap-6 text-sm">

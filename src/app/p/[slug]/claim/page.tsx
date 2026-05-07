@@ -27,8 +27,8 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
         <h1 className="mb-1 text-3xl font-bold text-ink">Claim Squares</h1>
         <p className="mb-6 text-sm text-ink/60">
           {me
-            ? `Tap empty squares below to claim them as ${me.name} in ${pool.name}.`
-            : `Join ${pool.name} first, then tap empty squares to claim them for the season.`}
+            ? `Tap empty squares to add them to your picks. You can change your mind before confirming.`
+            : `Join ${pool.name} first, then pick the squares you want.`}
         </p>
 
         {!me && (
@@ -40,7 +40,13 @@ export default async function ClaimPage({ params }: { params: Promise<{ slug: st
         )}
 
         <ClaimUI
-          poolId={pool.id}
+          pool={{
+            id: pool.id,
+            name: pool.name,
+            entryFeePerSquare: pool.entryFeePerSquare,
+            zelleHandle: pool.zelleHandle ?? null,
+            venmoHandle: pool.venmoHandle ?? null,
+          }}
           me={me ? { id: me.id, name: me.name, color: me.color } : null}
           squares={pool.squares.map((s) => ({
             row: s.row,
