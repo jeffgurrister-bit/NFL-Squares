@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Pool" ADD COLUMN     "adjacentPrize" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "bonusDigitPrize" INTEGER NOT NULL DEFAULT 0;
+

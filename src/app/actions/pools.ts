@@ -16,6 +16,8 @@ export async function updatePoolSettings(
     entryFeePerSquare?: number;
     weeklyPrize?: number;
     reverseWeeklyPrize?: number;
+    adjacentPrize?: number;
+    bonusDigitPrize?: number;
     zelleHandle?: string | null;
     venmoHandle?: string | null;
   },
@@ -27,7 +29,13 @@ export async function updatePoolSettings(
     if (!trimmed) throw new Error("Pool name can't be empty.");
     update.name = trimmed.slice(0, 60);
   }
-  for (const key of ["entryFeePerSquare", "weeklyPrize", "reverseWeeklyPrize"] as const) {
+  for (const key of [
+    "entryFeePerSquare",
+    "weeklyPrize",
+    "reverseWeeklyPrize",
+    "adjacentPrize",
+    "bonusDigitPrize",
+  ] as const) {
     const v = data[key];
     if (v == null) continue;
     if (!Number.isFinite(v) || v < 0 || v > 1_000_000) {

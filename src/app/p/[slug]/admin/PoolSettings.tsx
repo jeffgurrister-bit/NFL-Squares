@@ -8,6 +8,8 @@ type Initial = {
   entryFeePerSquare: number;
   weeklyPrize: number;
   reverseWeeklyPrize: number;
+  adjacentPrize: number;
+  bonusDigitPrize: number;
   zelleHandle: string;
   venmoHandle: string;
 };
@@ -28,6 +30,8 @@ export function PoolSettings({ poolId, initial }: { poolId: string; initial: Ini
         entryFeePerSquare: Number(form.entryFeePerSquare),
         weeklyPrize: Number(form.weeklyPrize),
         reverseWeeklyPrize: Number(form.reverseWeeklyPrize),
+        adjacentPrize: Number(form.adjacentPrize),
+        bonusDigitPrize: Number(form.bonusDigitPrize),
         zelleHandle: form.zelleHandle,
         venmoHandle: form.venmoHandle,
       });
@@ -73,7 +77,7 @@ export function PoolSettings({ poolId, initial }: { poolId: string; initial: Ini
                 onChange={(e) => setForm({ ...form, entryFeePerSquare: Number(e.target.value) })}
               />
             </Field>
-            <Field label="Weekly prize ($)">
+            <Field label="Weekly prize ($)" hint="Exact winner">
               <input
                 type="number"
                 min={0}
@@ -89,6 +93,33 @@ export function PoolSettings({ poolId, initial }: { poolId: string; initial: Ini
                 className="input"
                 value={form.reverseWeeklyPrize}
                 onChange={(e) => setForm({ ...form, reverseWeeklyPrize: Number(e.target.value) })}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field
+              label="Adjacent-square prize ($ each)"
+              hint="Paid to each of the 4 orthogonal neighbors (up/down/left/right) of the exact winner. Set 0 to disable."
+            >
+              <input
+                type="number"
+                min={0}
+                className="input"
+                value={form.adjacentPrize}
+                onChange={(e) => setForm({ ...form, adjacentPrize: Number(e.target.value) })}
+              />
+            </Field>
+            <Field
+              label="Bonus-digit prize ($/week)"
+              hint="Added to a running pot each week; the exact winner claims it if the bonus digit (last digit of season points through the prior week) matches either their winners' or losers' digit. Set 0 to disable."
+            >
+              <input
+                type="number"
+                min={0}
+                className="input"
+                value={form.bonusDigitPrize}
+                onChange={(e) => setForm({ ...form, bonusDigitPrize: Number(e.target.value) })}
               />
             </Field>
           </div>

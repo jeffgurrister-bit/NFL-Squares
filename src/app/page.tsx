@@ -371,6 +371,8 @@ type PoolWithRelations = {
   entryFeePerSquare: number;
   weeklyPrize: number;
   reverseWeeklyPrize: number;
+  adjacentPrize: number;
+  bonusDigitPrize: number;
   activeWeekNumber: number;
   squares: Array<{ row: number; col: number; participantId: string; participant: { name: string; color: string; userId: string | null } }>;
   participants: Array<{ id: string; userId: string | null }>;
@@ -428,9 +430,10 @@ async function PoolCard({
         <div>
           <h2 className="text-lg font-bold text-ink">{pool.name}</h2>
           <p className="mt-0.5 text-sm text-ink/60">
-            {dollars(pool.entryFeePerSquare)}/square ·{" "}
-            {dollars(pool.weeklyPrize)} win
-            {pool.reverseWeeklyPrize > 0 && ` + ${dollars(pool.reverseWeeklyPrize)} reverse`}
+            {dollars(pool.entryFeePerSquare)}/square · {dollars(pool.weeklyPrize)} win
+            {pool.reverseWeeklyPrize > 0 && ` · ${dollars(pool.reverseWeeklyPrize)} reverse`}
+            {pool.adjacentPrize > 0 && ` · ${dollars(pool.adjacentPrize)}×4 adjacents`}
+            {pool.bonusDigitPrize > 0 && ` · ${dollars(pool.bonusDigitPrize)} bonus`}
           </p>
         </div>
         <span className="badge bg-forest/10 text-forest">Wk {pool.activeWeekNumber}</span>
