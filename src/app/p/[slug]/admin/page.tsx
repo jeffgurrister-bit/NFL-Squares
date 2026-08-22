@@ -112,6 +112,8 @@ export default async function AdminPage({
               entryFeePerSquare: pool.entryFeePerSquare,
               weeklyPrize: pool.weeklyPrize,
               reverseWeeklyPrize: pool.reverseWeeklyPrize,
+              adjacentPrize: pool.adjacentPrize,
+              bonusDigitPrize: pool.bonusDigitPrize,
               zelleHandle: pool.zelleHandle ?? "",
               venmoHandle: pool.venmoHandle ?? "",
             }}

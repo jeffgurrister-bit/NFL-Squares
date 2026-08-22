@@ -19,6 +19,9 @@ type Props = {
   colDigits?: string | null;
   highlight?: { rowDigit?: number | null; colDigit?: number | null };
   reverseHighlight?: { rowDigit?: number | null; colDigit?: number | null };
+  // Optional list of (row, col) cells to highlight as adjacent winners
+  // (a lighter style than the exact-winner and reverse-winner cells).
+  adjacentCells?: Array<{ row: number; col: number }>;
 
   // Claim page (one-shot — kept for back-compat with anywhere still using it):
   onClaim?: (row: number, col: number) => Promise<void> | void;
@@ -50,6 +53,7 @@ export function Grid({
   colDigits,
   highlight,
   reverseHighlight,
+  adjacentCells,
   onClaim,
   selectedParticipantId,
   selectedSquares,
@@ -64,6 +68,9 @@ export function Grid({
 
   const selected = new Set<string>();
   for (const s of selectedSquares ?? []) selected.add(`${s.row},${s.col}`);
+
+  const adjacent = new Set<string>();
+  for (const a of adjacentCells ?? []) adjacent.add(`${a.row},${a.col}`);
 
   const rd = parseDigits(rowDigits ?? null);
   const cd = parseDigits(colDigits ?? null);
@@ -159,6 +166,7 @@ export function Grid({
                   const isSelected = selected.has(key);
                   const winning = isHighlightRow(i) && isHighlightCol(j);
                   const reverse = isReverseRow(i) && isReverseCol(j);
+                  const isAdjacent = adjacent.has(key);
                   const isPending = pending === key;
                   const clickable =
                     (onToggleSelect || (onClaim && selectedParticipantId)) && !sq;
@@ -169,7 +177,12 @@ export function Grid({
                   if (sq) {
                     bg = sq.color;
                     label = sq.participantName.slice(0, 5);
-                    extraClass = "border-transparent text-ink/80";
+                    // Occupied cells still get an outline when they hit an
+                    // adjacent/winner/reverse spot so the visual cue survives.
+                    if (winning) extraClass = "ring-2 ring-accent-gold";
+                    else if (reverse) extraClass = "ring-2 ring-forest";
+                    else if (isAdjacent) extraClass = "ring-2 ring-accent-gold/50";
+                    else extraClass = "border-transparent text-ink/80";
                   } else if (isSelected) {
                     bg = selectionColor;
                     label = "PICK";
@@ -178,6 +191,8 @@ export function Grid({
                     extraClass = "border-accent-gold bg-accent-goldSoft";
                   } else if (reverse) {
                     extraClass = "border-forest bg-forest/10";
+                  } else if (isAdjacent) {
+                    extraClass = "border-accent-gold/60 bg-accent-goldSoft/40";
                   }
 
                   return (

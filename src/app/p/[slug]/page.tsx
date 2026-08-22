@@ -5,7 +5,8 @@ import { PoolHeader } from "@/components/PoolHeader";
 import { Grid, type GridSquare } from "@/components/Grid";
 import { dollars } from "@/lib/format";
 import { weekTotals, allFinal } from "@/lib/scoring";
-import { parseDigits } from "@/lib/digits";
+import { parseDigits, cellForDigitPair } from "@/lib/digits";
+import { bonusStateForWeek } from "@/lib/payouts";
 import { auth } from "@/auth";
 import { InviteLinkButton } from "@/components/InviteLinkButton";
 import { JoinPoolButton } from "./JoinPoolButton";
@@ -47,6 +48,24 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
   });
   const totals = weekTotals(weekGames);
   const isComplete = allFinal(weekGames) && weekGames.length > 0;
+
+  // Compute the 4 adjacent cells around this week's exact winner (if any).
+  const winningCell = isComplete && activeWeek?.rowDigits && activeWeek?.colDigits
+    ? cellForDigitPair(activeWeek.rowDigits, activeWeek.colDigits, totals.losersDigit, totals.winnersDigit)
+    : null;
+  const adjacentCells = winningCell
+    ? [
+        { row: winningCell.row - 1, col: winningCell.col },
+        { row: winningCell.row + 1, col: winningCell.col },
+        { row: winningCell.row, col: winningCell.col - 1 },
+        { row: winningCell.row, col: winningCell.col + 1 },
+      ].filter((c) => c.row >= 0 && c.row <= 9 && c.col >= 0 && c.col <= 9)
+    : [];
+
+  // Current bonus digit + pot (for the active week).
+  const bonus = pool.bonusDigitPrize > 0
+    ? await bonusStateForWeek(pool.id, pool.activeWeekNumber)
+    : { digit: 0, pot: 0 };
 
   const gridSquares: GridSquare[] = pool.squares.map((s) => ({
     row: s.row,
@@ -99,11 +118,21 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
           <div>
             <h1 className="text-3xl font-bold text-ink">{pool.name}</h1>
             <p className="mt-1 text-sm text-ink/60">
-              {dollars(pool.entryFeePerSquare)}/square &middot; {dollars(pool.weeklyPrize)} weekly &middot;{" "}
-              {dollars(pool.reverseWeeklyPrize)} reverse
+              {dollars(pool.entryFeePerSquare)}/square · {dollars(pool.weeklyPrize)} win
+              {pool.reverseWeeklyPrize > 0 && ` · ${dollars(pool.reverseWeeklyPrize)} reverse`}
+              {pool.adjacentPrize > 0 && ` · ${dollars(pool.adjacentPrize)}×4 adjacents`}
+              {pool.bonusDigitPrize > 0 && ` · ${dollars(pool.bonusDigitPrize)} bonus`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/p/${pool.slug}/print`}
+              className="btn-secondary"
+              target="_blank"
+              rel="noopener"
+            >
+              Print
+            </Link>
             <InviteLinkButton poolSlug={pool.slug} variant="secondary" />
             {isMember ? (
               <Link href={`/p/${pool.slug}/claim`} className="btn-primary">
@@ -201,9 +230,21 @@ export default async function PoolHome({ params }: { params: Promise<{ slug: str
                   ? { rowDigit: totals.winnersDigit, colDigit: totals.losersDigit }
                   : undefined
               }
+              adjacentCells={pool.adjacentPrize > 0 ? adjacentCells : []}
               showAxisLabels
               showNumbers
             />
+            {pool.bonusDigitPrize > 0 && activeWeek?.rowDigits && (
+              <div className="mt-4 rounded-md bg-surface p-3 text-xs text-ink/80">
+                <span className="font-bold text-ink">Bonus digit this week:</span>{" "}
+                <span className="font-mono">{bonus.digit}</span> · pot on the line:{" "}
+                <span className="font-bold text-ink">{dollars(bonus.pot)}</span>
+                <p className="mt-0.5 text-[11px] text-ink/50">
+                  Awarded on top of the exact-winner prize if either the winners&apos; or losers&apos;
+                  digit matches. Otherwise it rolls into next week.
+                </p>
+              </div>
+            )}
           </section>
 
           <section className="card">

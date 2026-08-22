@@ -69,8 +69,10 @@ model Pool {
   slug                String        @unique
   name                String
   entryFeePerSquare   Int           // dollars
-  weeklyPrize         Int           // dollars to the winning square
+  weeklyPrize         Int           // exact winner's weekly prize
   reverseWeeklyPrize  Int           // dollars to the reverse square
+  adjacentPrize       Int           @default(0) // per-adjacent-cell prize (4 orthogonal neighbors of winning square)
+  bonusDigitPrize     Int           @default(0) // per-week bonus contribution; rolls over until claimed
   activeWeekNumber    Int           @default(1)
   zelleHandle         String?       // e.g. "(555) 555-7687" or "jimmie@example.com"
   venmoHandle         String?       // e.g. "Jimmie-Perkins" (no @ — we add it in the UI)
